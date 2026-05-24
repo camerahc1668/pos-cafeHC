@@ -193,7 +193,7 @@
 <script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>☕ POS Quán Cafe 206</title>
+<title>☕ POS HC</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -322,6 +322,167 @@
     border-bottom: 1px dotted #000;
     margin: 4px 0;
   }
+
+/* ══════════════════════════════════════════════════
+   DARK MODE
+══════════════════════════════════════════════════ */
+body.dark-mode {
+  background: linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#0f172a 100%) !important;
+  color: #e2e8f0;
+}
+body.dark-mode .glass {
+  background: rgba(15,23,42,0.95) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode header {
+  background: rgba(15,23,42,0.97) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+body.dark-mode .bg-white,
+body.dark-mode .bg-white\/80,
+body.dark-mode .bg-white\/90,
+body.dark-mode .bg-white\/97 {
+  background-color: #1e293b !important;
+}
+body.dark-mode [class*="bg-slate-50"] { background-color: #1e293b !important; }
+body.dark-mode [class*="bg-slate-100"] { background-color: #273548 !important; }
+body.dark-mode [class*="bg-slate-200"] { background-color: #334155 !important; }
+body.dark-mode [class*="text-slate-800"],
+body.dark-mode [class*="text-slate-900"],
+body.dark-mode h1,h2,h3,h4 { color: #f1f5f9 !important; }
+body.dark-mode [class*="text-slate-700"] { color: #cbd5e1 !important; }
+body.dark-mode [class*="text-slate-600"] { color: #94a3b8 !important; }
+body.dark-mode [class*="text-slate-500"] { color: #64748b !important; }
+body.dark-mode [class*="border-slate-200"] { border-color: rgba(255,255,255,0.08) !important; }
+body.dark-mode [class*="border-slate-300"] { border-color: rgba(255,255,255,0.12) !important; }
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background-color: #0f172a !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #e2e8f0 !important;
+}
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder { color: #475569 !important; }
+body.dark-mode .tab-btn { color: #64748b !important; }
+body.dark-mode .tab-btn.border-orange-500 { color: #f97316 !important; }
+body.dark-mode #main-content { background: transparent; }
+body.dark-mode [data-tab-content] table thead { background: #1e293b !important; }
+body.dark-mode [data-tab-content] table tbody tr { border-color: rgba(255,255,255,0.06) !important; }
+body.dark-mode [data-tab-content] table tbody tr:hover { background: #273548 !important; }
+body.dark-mode #cart-panel {
+  background: rgba(15,23,42,0.98) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode .modal-overlay { background: rgba(0,0,0,0.75) !important; }
+body.dark-mode #modal-overlay > * .bg-white { background: #1e293b !important; }
+body.dark-mode #modal-overlay > * [class*="border-slate-200"] { border-color: rgba(255,255,255,0.08) !important; }
+body.dark-mode #modal-overlay > * [class*="bg-slate-50"] { background: #0f172a !important; }
+body.dark-mode #modal-overlay > * [class*="bg-slate-100"] { background: #273548 !important; }
+body.dark-mode .bg-emerald-50 { background: rgba(16,185,129,0.1) !important; }
+body.dark-mode .bg-orange-50 { background: rgba(249,115,22,0.1) !important; }
+body.dark-mode .bg-blue-50 { background: rgba(59,130,246,0.1) !important; }
+body.dark-mode .bg-red-50 { background: rgba(239,68,68,0.1) !important; }
+body.dark-mode .bg-amber-50 { background: rgba(245,158,11,0.1) !important; }
+body.dark-mode .bg-violet-50 { background: rgba(139,92,246,0.1) !important; }
+/* Dark mode: table cards */
+body.dark-mode [data-table-id].bg-emerald-50 { background: rgba(16,185,129,0.12) !important; border-color: rgba(16,185,129,0.25) !important; }
+body.dark-mode [data-table-id].bg-orange-50 { background: rgba(249,115,22,0.12) !important; border-color: rgba(249,115,22,0.25) !important; }
+body.dark-mode [data-table-id].bg-blue-50 { background: rgba(59,130,246,0.12) !important; border-color: rgba(59,130,246,0.25) !important; }
+/* Dark mode: menu card */
+body.dark-mode [data-item-id] { background: #1e293b !important; border-color: rgba(255,255,255,0.08) !important; }
+body.dark-mode [data-item-id] h3 { color: #f1f5f9 !important; }
+/* Dark scrollbar */
+body.dark-mode ::-webkit-scrollbar-track { background: #0f172a; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #334155; }
+/* Dark login screen unchanged (already dark) */
+#login-screen { /* keep as-is */ }
+
+/* Dark mode toggle button */
+#btn-dark-mode {
+  position: relative;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+#btn-dark-mode:hover { background: #f1f5f9; transform: translateY(-1px); }
+body.dark-mode #btn-dark-mode { border-color: rgba(255,255,255,0.15); }
+body.dark-mode #btn-dark-mode:hover { background: rgba(255,255,255,0.08); }
+
+/* ══════════════════════════════════════════════════
+   BADGE SHAPE STYLES
+══════════════════════════════════════════════════ */
+
+/* Mặc định: pill (bo tròn) */
+.menu-badge.shape-pill {
+  border-radius: 999px;
+}
+
+/* Răng cưa */
+.menu-badge.shape-zigzag {
+  border-radius: 0;
+  clip-path: polygon(
+    0% 20%, 5% 0%, 10% 20%, 15% 0%, 20% 20%, 25% 0%, 30% 20%, 35% 0%, 40% 20%, 45% 0%, 50% 20%, 55% 0%, 60% 20%, 65% 0%, 70% 20%, 75% 0%, 80% 20%, 85% 0%, 90% 20%, 95% 0%, 100% 20%,
+    100% 80%, 95% 100%, 90% 80%, 85% 100%, 80% 80%, 75% 100%, 70% 80%, 65% 100%, 60% 80%, 55% 100%, 50% 80%, 45% 100%, 40% 80%, 35% 100%, 30% 80%, 25% 100%, 20% 80%, 15% 100%, 10% 80%, 5% 100%, 0% 80%
+  );
+  padding: 6px 14px !important;
+  border: none !important;
+  backdrop-filter: none;
+}
+
+/* Không khung (flat label) */
+.menu-badge.shape-flat {
+  border-radius: 0;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  padding: 3px 8px !important;
+  font-size: 10px !important;
+}
+.menu-badge.shape-flat .menu-badge-icon {
+  display: none !important;
+}
+
+/* Khung vuông nổi bật */
+.menu-badge.shape-square {
+  border-radius: 0 !important;
+  border: 1.5px solid rgba(255,255,255,0.85) !important;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.18) !important;
+  backdrop-filter: none;
+}
+
+/* Badge shape preview buttons */
+.shape-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #475569;
+  transition: all .15s;
+}
+.shape-opt:hover { border-color: #f97316; color: #f97316; }
+.shape-opt.active { border-color: #0f172a; background: #0f172a; color: #fff; }
+.shape-opt.shape-pill  { border-radius: 999px; }
+.shape-opt.shape-zigzag {
+  border-radius: 0;
+  clip-path: polygon(0% 20%,5% 0%,10% 20%,15% 0%,20% 20%,25% 0%,30% 20%,35% 0%,40% 20%,45% 0%,50% 20%,55% 0%,60% 20%,65% 0%,70% 20%,75% 0%,80% 20%,85% 0%,90% 20%,95% 0%,100% 20%,100% 80%,95% 100%,90% 80%,85% 100%,80% 80%,75% 100%,70% 80%,65% 100%,60% 80%,55% 100%,50% 80%,45% 100%,40% 80%,35% 100%,30% 80%,25% 100%,20% 80%,15% 100%,10% 80%,5% 100%,0% 80%);
+  border: none !important;
+  padding: 6px 12px;
+}
+.shape-opt.shape-flat  { border-radius: 0; border-left-width: 3px; border-right: none; border-top: none; border-bottom: none; padding: 4px 8px; }
+.shape-opt.shape-square { border-radius: 0; box-shadow: 2px 2px 0 #0f172a; }
 </style>
 
 <style>
@@ -419,19 +580,62 @@ table tbody tr:hover{
 /* ── Menu item badge ── */
 .menu-badge {
   position: absolute;
-  top: 7px; left: 7px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 800;
+  top: 8px; left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
   color: #fff;
-  letter-spacing: .02em;
+  letter-spacing: .03em;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0,0,0,.22);
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.68);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 8px 18px rgba(0,0,0,.28);
   pointer-events: none;
   z-index: 5;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
   background-clip: padding-box;
+  animation: badge-flash 1.15s ease-in-out infinite;
+}
+
+.menu-badge-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255,255,255,.96);
+  color: #ea580c;
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: inset 0 -1px 0 rgba(15,23,42,.14), 0 1px 4px rgba(0,0,0,.22);
+  animation: badge-icon-pop .85s ease-in-out infinite;
+}
+
+.menu-badge-text {
+  line-height: 1;
+}
+
+@keyframes badge-flash {
+  0%, 100% {
+    filter: brightness(1) saturate(1.12);
+    transform: translateZ(0) scale(1);
+  }
+  50% {
+    filter: brightness(1.32) saturate(1.45);
+    transform: translateZ(0) scale(1.055);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.55), 0 0 22px rgba(249,115,22,.75), 0 10px 22px rgba(0,0,0,.3);
+  }
+}
+
+@keyframes badge-icon-pop {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.18) rotate(-7deg); }
 }
 
 /* ── Logo click hint ── */
@@ -537,6 +741,25 @@ header > div:first-child > div:nth-child(2) {
 .tab-btn {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+.tab-btn {
+  border-radius: 0.75rem 0.75rem 0 0;
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  color: #475569;
+}
+
+.tab-btn svg {
+  width: 1.05rem !important;
+  height: 1.05rem !important;
+}
+
+.tab-btn.border-orange-500,
+.tab-btn[style*="display: none"] + .tab-btn.border-orange-500 {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.13), rgba(236, 72, 153, 0.13));
+  color: #ea580c !important;
+  box-shadow: inset 0 -2px 0 #f97316, 0 8px 18px rgba(249, 115, 22, 0.14);
 }
 
 #header-shop-name,
@@ -672,8 +895,28 @@ header > div:first-child > div:nth-child(2) {
   }
 
   .tab-btn {
-    padding: 0.625rem 0.875rem !important;
-    font-size: 0.8125rem !important;
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 900 !important;
+    line-height: 1.15 !important;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  header .px-4.flex.gap-1.border-t {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.25rem !important;
+    padding: 0.375rem 0.5rem !important;
+    overflow: visible;
+  }
+
+  .tab-btn svg {
+    width: 0.95rem !important;
+    height: 0.95rem !important;
+    margin-right: 0.125rem !important;
   }
 
   #main-content table {
@@ -725,6 +968,60 @@ header > div:first-child > div:nth-child(2) {
 
   #cart-items {
     padding: 0.625rem !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button,
+  .tab-btn,
+  .order-type-btn,
+  .category-btn,
+  label.cursor-pointer,
+  [data-table-id],
+  [data-item-id],
+  input,
+  select,
+  textarea {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+  }
+
+  button:hover,
+  .tab-btn:hover,
+  .order-type-btn:hover,
+  .category-btn:hover,
+  label.cursor-pointer:hover {
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+    filter: saturate(1.08);
+  }
+
+  #main-content [data-table-id]:hover,
+  #main-content [data-item-id]:hover,
+  #takeaway-list > *:hover,
+  #main-content .bg-white.rounded-xl:hover {
+    border-color: rgba(249, 115, 22, 0.45) !important;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+  }
+
+  #main-content [data-table-id]:hover h3,
+  #main-content [data-item-id]:hover h3,
+  .tab-btn:hover,
+  .category-btn:hover {
+    color: #ea580c !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  header .tab-btn:hover {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(236, 72, 153, 0.18));
+    border-color: rgba(249, 115, 22, 0.65) !important;
+    color: #c2410c !important;
+    transform: translateY(-1px);
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: rgba(249, 115, 22, 0.55) !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
   }
 }
 
@@ -856,6 +1153,9 @@ header > div:first-child > div:nth-child(2) {
       </div>
 
       <div class="flex items-center gap-2">
+        <!-- Dark Mode Toggle -->
+        <button id="btn-dark-mode" onclick="toggleDarkMode()" title="Chế độ sáng / tối">☀️</button>
+
         <button id="btn-notify" class="relative p-2 hover:bg-slate-100 rounded-lg transition-colors">
           <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -1405,6 +1705,29 @@ header > div:first-child > div:nth-child(2) {
           </h3>
           <p class="text-xs text-slate-400 mb-4">Xuất / Nhập toàn bộ dữ liệu hệ thống. Dữ liệu được lưu tự động khi dùng.</p>
 
+          <!-- Firebase sync section -->
+          <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div class="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">FB</span>
+              Firebase - đồng bộ dữ liệu hiện tại
+            </div>
+            <p class="text-xs text-amber-800 mb-3">Dùng Firebase Config ở phần Thông tin quán hoặc nút Firebase trên header. Dữ liệu được lưu tại <span class="font-mono">pos_data/{shopId}/app_state/current</span>.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <button onclick="exportDataToFirebase()" class="flex items-center justify-center gap-2 p-3 bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-xl shadow hover:shadow-md transition-all text-xs font-bold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4 4m4-4v12"/></svg>
+                Đẩy lên Firebase
+              </button>
+              <button onclick="importDataFromFirebase()" class="flex items-center justify-center gap-2 p-3 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-xl shadow hover:shadow-md transition-all text-xs font-bold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Lấy từ Firebase
+              </button>
+              <button onclick="syncCurrentDataWithFirebase()" class="flex items-center justify-center gap-2 p-3 bg-gradient-to-br from-emerald-500 to-teal-500 text-white rounded-xl shadow hover:shadow-md transition-all text-xs font-bold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5 19A9 9 0 0019 5M19 5h-5m5 0v5"/></svg>
+                Đồng bộ ngay
+              </button>
+            </div>
+          </div>
+
           <!-- Export section -->
           <div class="mb-5">
             <div class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
@@ -1754,8 +2077,8 @@ function initFirebase(cfg) {
         state.pendingOrders.push(po);
         persistState();
         renderTables();
-        pushNotification('📱 Khách đặt món!',
-          `${po.customerName||'Khách'} – ${po.tableName}: ${(po.items||[]).map(i=>i.name+'×'+i.qty).join(', ')}`, '📱');
+        pushNotification('📱 Khách gọi món!',
+          `Khách ${po.customerName||'vãng lai'} gọi món tại ${po.tableName}: ${(po.items||[]).map(i=>i.name+' x'+i.qty).join(', ')}`, '📱');
       }
       // Remove from Firebase after consumed
       snap.ref.remove();
@@ -1809,6 +2132,131 @@ async function fbSyncKitchenOrder(kitchenEntry) {
     console.warn('Kitchen sync failed:', e);
   }
 }
+
+function parseFirebaseConfigFromSettings() {
+  const raw = (state.settings?.firebaseConfig || '').trim();
+  if (!raw) return null;
+  try {
+    const cfg = JSON.parse(raw);
+    cfg.shopId = (state.settings?.firebaseShopId || cfg.shopId || 'shop1').trim();
+    return cfg;
+  } catch(e) {
+    showToast('Firebase Config JSON khong hop le', 'error');
+    return null;
+  }
+}
+
+async function ensureFirebaseReady() {
+  if (typeof readSettingsFromDOM === 'function') Object.assign(state.settings, readSettingsFromDOM());
+  if (_db && _fbReady && _fbShopId) return true;
+  const cfg = loadFBConfig() || parseFirebaseConfigFromSettings();
+  if (!cfg || !cfg.apiKey || !cfg.databaseURL) {
+    showToast('Hay cau hinh Firebase truoc khi dong bo du lieu', 'error');
+    showFBConfigModal();
+    return false;
+  }
+  initFirebase(cfg);
+  try {
+    if (window.firebase?.auth && !firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+  } catch(e) {}
+  await new Promise(resolve => setTimeout(resolve, 700));
+  return !!(_db && _fbReady && _fbShopId);
+}
+
+function applyFirebaseSnapshotData(data) {
+  if (!data || typeof data !== 'object') throw new Error('Du lieu Firebase khong hop le');
+  const keys = ['currentOrderType','currentTableId','currentTakeawayId','currentCustomerId','orders','tables',
+    'takeawayOrders','menuItems','inventory','customers','debts','purchases','units','transactions','settings',
+    'pendingOrders','kitchenOrders'];
+  keys.forEach(k => { if (data[k] !== undefined) state[k] = data[k]; });
+  normalizeLoadedState();
+  persistState();
+  renderTables(); renderMenu(); renderTakeaway(); renderInventory(); renderCustomers();
+  renderDebts(); renderPurchases(); renderCart(); updateHeader(); updateKitchenBadge();
+  if (document.querySelector('[data-tab-content="kitchen"]')?.classList.contains('active')) renderKitchen();
+  if (document.querySelector('[data-tab-content="reports"]')?.classList.contains('active')) renderReports();
+}
+
+function createFirebaseSnapshot() {
+  return {
+    _version: 1,
+    _app: 'POS Cafe 206',
+    _updatedAt: new Date().toISOString(),
+    _device: navigator.userAgent,
+    data: createSerializableState()
+  };
+}
+
+async function exportDataToFirebase() {
+  if (!await ensureFirebaseReady()) return;
+  try {
+    Object.assign(state.settings, typeof readSettingsFromDOM === 'function' ? readSettingsFromDOM() : {});
+    const snapshot = createFirebaseSnapshot();
+    const stamp = snapshot._updatedAt.replace(/[:.]/g, '-');
+    const root = _db.ref(`pos_data/${_fbShopId}/app_state`);
+    await root.child('current').set(snapshot);
+    await root.child(`backups/${stamp}`).set(snapshot);
+    state.settings.firebaseSyncUpdatedAt = snapshot._updatedAt;
+    persistState();
+    showImportLog(`Da day du lieu hien tai len Firebase.\nShop ID: ${_fbShopId}\nCap nhat: ${new Date(snapshot._updatedAt).toLocaleString('vi-VN')}`);
+    showToast('Da day du lieu len Firebase');
+    renderFBStatus();
+  } catch(e) {
+    showToast('Loi day du lieu Firebase: ' + e.message, 'error');
+  }
+}
+
+async function importDataFromFirebase() {
+  if (!await ensureFirebaseReady()) return;
+  try {
+    const snap = await _db.ref(`pos_data/${_fbShopId}/app_state/current`).once('value');
+    if (!snap.exists()) {
+      showToast('Firebase chua co du lieu de lay ve', 'error');
+      return;
+    }
+    const remote = snap.val();
+    if (!confirm(`Lay du lieu tu Firebase ve may nay?\nDu lieu hien tai se duoc thay the.\nCap nhat Firebase: ${remote._updatedAt ? new Date(remote._updatedAt).toLocaleString('vi-VN') : 'khong ro'}`)) return;
+    applyFirebaseSnapshotData(remote.data || remote);
+    state.settings.firebaseSyncUpdatedAt = remote._updatedAt || new Date().toISOString();
+    persistState();
+    showImportLog(`Da lay du lieu tu Firebase.\nShop ID: ${_fbShopId}\nCap nhat: ${new Date(state.settings.firebaseSyncUpdatedAt).toLocaleString('vi-VN')}`);
+    showToast('Da lay du lieu tu Firebase');
+  } catch(e) {
+    showToast('Loi lay du lieu Firebase: ' + e.message, 'error');
+  }
+}
+
+async function syncCurrentDataWithFirebase() {
+  if (!await ensureFirebaseReady()) return;
+  try {
+    const snap = await _db.ref(`pos_data/${_fbShopId}/app_state/current`).once('value');
+    if (!snap.exists()) {
+      await exportDataToFirebase();
+      return;
+    }
+    const remote = snap.val();
+    const remoteTime = remote?._updatedAt ? new Date(remote._updatedAt).getTime() : 0;
+    const localTime = state.settings?.firebaseSyncUpdatedAt ? new Date(state.settings.firebaseSyncUpdatedAt).getTime() : 0;
+    if (remoteTime > localTime) {
+      const pull = confirm(`Firebase co du lieu moi hon.\nOK: lay ve may nay\nCancel: ghi de Firebase bang du lieu hien tai`);
+      if (pull) {
+        applyFirebaseSnapshotData(remote.data || remote);
+        state.settings.firebaseSyncUpdatedAt = remote._updatedAt || new Date().toISOString();
+        persistState();
+        showImportLog('Da dong bo: lay ban moi tu Firebase ve may nay.');
+        showToast('Da dong bo tu Firebase');
+        return;
+      }
+    }
+    await exportDataToFirebase();
+  } catch(e) {
+    showToast('Loi dong bo Firebase: ' + e.message, 'error');
+  }
+}
+
+window.exportDataToFirebase = exportDataToFirebase;
+window.importDataFromFirebase = importDataFromFirebase;
+window.syncCurrentDataWithFirebase = syncCurrentDataWithFirebase;
 
 // ── Cập nhật trạng thái UI Firebase ──────────────────────────
 function updateFBStatusUI(status) {
@@ -1864,6 +2312,44 @@ function getBadges() {
 function badgeStyle(key) {
   const b = getBadges().find(x => x.key === key);
   return b || { key, text: key, color: 'from-slate-500 to-gray-400' };
+}
+
+function badgeIconFor(key, text) {
+  const map = {
+    new: 'N',
+    best: '★',
+    hot: '🔥',
+    yummy: '❤',
+    cheap: '$',
+    sale: '%',
+    limited: '!',
+    healthy: '✓'
+  };
+  return map[key] || String(text || '★').trim().charAt(0).toUpperCase() || '★';
+}
+
+function badgeColorFor(badge) {
+  const bright = {
+    new: 'from-sky-400 via-cyan-400 to-blue-600',
+    best: 'from-yellow-300 via-amber-400 to-orange-500',
+    hot: 'from-red-500 via-orange-500 to-yellow-400',
+    yummy: 'from-pink-500 via-rose-500 to-red-500',
+    cheap: 'from-emerald-400 via-lime-400 to-teal-500',
+    sale: 'from-fuchsia-500 via-violet-500 to-indigo-600',
+    limited: 'from-slate-500 via-zinc-500 to-stone-700',
+    healthy: 'from-lime-400 via-green-500 to-emerald-600'
+  };
+  return bright[badge?.key] || badge?.color || 'from-slate-500 via-gray-500 to-zinc-700';
+}
+
+function renderBadgeMarkup(badge, shape) {
+  if (!badge) return '';
+  const icon = badge.icon || badgeIconFor(badge.key, badge.text);
+  const shapeClass = 'shape-' + (shape || badge.shape || 'pill');
+  return `<div class="menu-badge bg-gradient-to-r ${badgeColorFor(badge)} ${shapeClass}">
+    <span class="menu-badge-icon">${icon}</span>
+    <span class="menu-badge-text">${badge.text}</span>
+  </div>`;
 }
 
 const STORAGE_KEY = 'pos-cafe-206-v1';
@@ -1967,7 +2453,7 @@ function loadPersistedState() {
     [
       'currentOrderType', 'currentTableId', 'currentTakeawayId', 'currentCustomerId',
       'orders', 'tables', 'takeawayOrders', 'menuItems', 'inventory', 'customers',
-      'debts', 'purchases', 'units', 'transactions', 'settings'
+      'debts', 'purchases', 'units', 'transactions', 'settings', 'pendingOrders', 'kitchenOrders'
     ].forEach(key => {
       if (data[key] !== undefined) state[key] = data[key];
     });
@@ -2473,7 +2959,7 @@ function showPendingOrdersModal(tableId) {
     hideModal();
     showToast(`✅ Đã nhận đơn của ${po.customerName || 'khách'} – ${tbl ? tbl.name : ''}!`);
     // Push to kitchen notification
-    pushNotification('🍽 Đơn mới!', `${po.customerName || 'Khách'} – ${tbl.name}: ${po.items.map(i=>i.name+'×'+i.qty).join(', ')}`, '🍽');
+    pushNotification('🍽 Đơn mới!', `Đã nhận đơn của khách ${po.customerName || 'vãng lai'} tại ${tbl.name}: ${po.items.map(i=>i.name+' x'+i.qty).join(', ')}`, '🍽');
   };
 
   window.rejectPendingOrder = (poId) => {
@@ -2509,7 +2995,7 @@ function pollQROrders() {
         if (!state.pendingOrders) state.pendingOrders = [];
         state.pendingOrders.push(po);
         hasNew = true;
-        pushNotification('📱 Khách đặt món!', `${po.customerName||'Khách'} – ${tbl.name}: ${po.items.map(i=>i.name+'×'+i.qty).join(', ')}`, '📱');
+        pushNotification('📱 Khách gọi món!', `Khách ${po.customerName||'vãng lai'} gọi món tại ${tbl.name}: ${po.items.map(i=>i.name+' x'+i.qty).join(', ')}`, '📱');
       }
     } catch(e) {}
     localStorage.removeItem(key);
@@ -2599,6 +3085,10 @@ function showFBConfigModal() {
           }
         },
         "menu_data": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "app_state": {
           ".read": "auth != null",
           ".write": "auth != null"
         }
@@ -3026,7 +3516,7 @@ function filterMenu() {
     const badgeKey = item.badge || '';
     const bd = badgeKey ? badgeStyle(badgeKey) : null;
     const badgeHtml = bd
-      ? `<div class="menu-badge bg-gradient-to-r ${bd.color}">${bd.text}</div>`
+      ? renderBadgeMarkup(bd, item.badgeShape)
       : '';
 
     return `
@@ -3394,7 +3884,7 @@ document.getElementById('btn-send-kitchen').addEventListener('click', () => {
   schedulePersist();
 
   showToast(`🍳 Đã gửi ${kitchenEntry.items.length} món lên bếp!`);
-  pushNotification('🍳 Đơn mới lên bếp!', `${tableName}: ${kitchenEntry.items.map(i=>i.name+'×'+i.qty).join(', ')}`,'🍳');
+  pushNotification('🍳 Đơn mới lên bếp!', `Có đơn mới từ ${tableName}: ${kitchenEntry.items.map(i=>i.name+' x'+i.qty).join(', ')}`, '🍳');
 });
 
 document.getElementById('btn-checkout').addEventListener('click', () => {
@@ -3705,15 +4195,113 @@ function requestNotifPermission() {
   }
 }
 
+// ══════════════════════════════════════════════════
+//  DARK MODE
+// ══════════════════════════════════════════════════
+const DARK_KEY = 'pos_dark_mode';
+
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem(DARK_KEY, isDark ? '1' : '');
+  document.getElementById('btn-dark-mode').textContent = isDark ? '🌙' : '☀️';
+}
+
+(function initDarkMode() {
+  if (localStorage.getItem(DARK_KEY) === '1') {
+    document.body.classList.add('dark-mode');
+    const btn = document.getElementById('btn-dark-mode');
+    if (btn) btn.textContent = '🌙';
+  }
+})();
+
+// ══════════════════════════════════════════════════
+//  TEXT-TO-SPEECH — đọc tiếng Việt
+// ══════════════════════════════════════════════════
+let _ttsEnabled = localStorage.getItem('pos_tts') !== '0'; // bật mặc định
+
+function speakVietnamese(text) {
+  if (!_ttsEnabled) return;
+  if (!('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    // Ưu tiên giọng tiếng Việt, fallback sang giọng bất kỳ
+    const voices = window.speechSynthesis.getVoices();
+    const viVoice = voices.find(v => v.lang.startsWith('vi')) ||
+                    voices.find(v => v.lang.startsWith('vi-VN')) ||
+                    null;
+    if (viVoice) utter.voice = viVoice;
+    utter.lang = 'vi-VN';
+    utter.rate = 0.92;
+    utter.pitch = 1.05;
+    utter.volume = 1;
+    window.speechSynthesis.speak(utter);
+  } catch(e) {}
+}
+
+// Chờ voices load xong (Chrome lazy-load)
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+// ══════════════════════════════════════════════════
+//  NOTIFY BADGE — chuông trên header
+// ══════════════════════════════════════════════════
+let _notifyList = []; // { id, title, body, time }
+
+function addNotify(title, body) {
+  _notifyList.unshift({ id: Date.now(), title, body, time: new Date() });
+  if (_notifyList.length > 30) _notifyList.pop();
+  const badge = document.getElementById('notify-badge');
+  if (badge) badge.classList.remove('hidden');
+}
+
+function showNotifyPanel() {
+  const badge = document.getElementById('notify-badge');
+  if (badge) badge.classList.add('hidden');
+  showModal(`
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm animate-scale max-h-[80vh] flex flex-col">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+        <h3 class="font-extrabold text-slate-800 text-lg">🔔 Thông báo</h3>
+        <div class="flex gap-2">
+          <button onclick="_notifyList=[];document.getElementById('notify-badge')?.classList.add('hidden');hideModal()" 
+            class="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors font-semibold">Xoá tất cả</button>
+          <button onclick="hideModal()" class="text-slate-300 hover:text-slate-500 text-2xl leading-none">✕</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto divide-y divide-slate-100">
+        ${_notifyList.length === 0
+          ? `<div class="text-center py-12 text-slate-400 text-sm">Chưa có thông báo nào</div>`
+          : _notifyList.map(n => `
+            <div class="px-5 py-3.5">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <div class="font-bold text-slate-800 text-sm">${n.title}</div>
+                  <div class="text-xs text-slate-500 mt-0.5">${n.body}</div>
+                </div>
+                <div class="text-xs text-slate-300 shrink-0 mt-0.5">${n.time.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
+            </div>`).join('')}
+      </div>
+    </div>
+  `);
+}
+
+document.getElementById('btn-notify').addEventListener('click', showNotifyPanel);
+
 function pushNotification(title, body, icon = '⚠️') {
-  // In-app toast first
+  // In-app toast
   showToast(`${icon} ${body}`, 'error');
+  // Add to notify list
+  addNotify(`${icon} ${title}`, body);
   // Browser push if permitted
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification(title, { body, icon: '/favicon.ico', tag: 'stock-warning', renotify: true });
+      new Notification(title, { body, icon: '/favicon.ico', tag: 'pos-notify', renotify: true });
     } catch(e) {}
   }
+  // TTS đọc tiếng Việt
+  speakVietnamese(body);
 }
 
 function checkStockLevels(silent = false) {
@@ -4244,10 +4832,10 @@ function showEditFoodModal(itemId = null) {
             </button>
             ${getBadges().map(b => `
               <button type="button" onclick="selectBadge('${b.key}',this)"
-                class="badge-opt px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all bg-gradient-to-r ${b.color} text-white
-                  ${item?.badge === b.key ? 'border-slate-800 scale-105 shadow-md' : 'border-transparent opacity-80 hover:opacity-100 hover:scale-105'}"
+                class="badge-opt px-3 py-1.5 rounded-full text-xs font-extrabold border-2 transition-all bg-gradient-to-r ${badgeColorFor(b)} text-white shadow-sm
+                  ${item?.badge === b.key ? 'border-slate-900 scale-110 shadow-lg' : 'border-white/70 opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-lg'}"
                 data-key="${b.key}">
-                ${b.text}
+                <span class="inline-flex items-center gap-1"><span class="bg-white text-orange-600 rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]">${b.icon || badgeIconFor(b.key,b.text)}</span>${b.text}</span>
               </button>`).join('')}
           </div>
           <!-- Thêm nhãn tuỳ chỉnh -->
@@ -4260,6 +4848,29 @@ function showEditFoodModal(itemId = null) {
             </button>
           </div>
           <p class="text-xs text-slate-400 mt-1">Nhãn tùy chỉnh sẽ được lưu vào danh sách nhãn của quán.</p>
+
+          <!-- KIỂU KHUNG NHÃN -->
+          <div class="mt-3 pt-3 border-t border-slate-100">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">🔲 Kiểu khung nhãn</label>
+            <div class="flex flex-wrap gap-2" id="badge-shape-picker">
+              <button type="button" onclick="selectBadgeShape('pill',this)"
+                class="shape-opt shape-pill ${(item?.badgeShape||'pill')==='pill' ? 'active' : ''}" data-shape="pill">
+                ● Pill
+              </button>
+              <button type="button" onclick="selectBadgeShape('zigzag',this)"
+                class="shape-opt shape-zigzag ${item?.badgeShape==='zigzag' ? 'active' : ''}" data-shape="zigzag">
+                ⚡ Răng cưa
+              </button>
+              <button type="button" onclick="selectBadgeShape('flat',this)"
+                class="shape-opt shape-flat ${item?.badgeShape==='flat' ? 'active' : ''}" data-shape="flat">
+                ▬ Không khung
+              </button>
+              <button type="button" onclick="selectBadgeShape('square',this)"
+                class="shape-opt shape-square ${item?.badgeShape==='square' ? 'active' : ''}" data-shape="square">
+                ▪ Vuông nổi
+              </button>
+            </div>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-2">Hình ảnh</label>
@@ -4380,6 +4991,9 @@ function showEditFoodModal(itemId = null) {
     // Badge
     const badge = document.getElementById('badge-picker')?.dataset.selected ?? (document.querySelector('.badge-opt.border-slate-800:not(.bg-white)')?.dataset.key || '');
 
+    // Badge shape
+    const badgeShape = document.getElementById('badge-shape-picker')?.dataset.selected || 'pill';
+
     // Collect recipe
     const steps = [...document.querySelectorAll('#recipe-steps .step-text')].map(t => t.value.trim()).filter(Boolean);
     const recipe = {
@@ -4397,10 +5011,10 @@ function showEditFoodModal(itemId = null) {
 
     if (itemId) {
       const item = state.menuItems.find(i => i.id === itemId);
-      Object.assign(item, { name, category, price, unit, image, ingredients, recipe, badge });
+      Object.assign(item, { name, category, price, unit, image, ingredients, recipe, badge, badgeShape });
       showToast('Đã cập nhật món');
     } else {
-      state.menuItems.push({ id: Date.now(), name, category, price, unit, image, ingredients, recipe, badge });
+      state.menuItems.push({ id: Date.now(), name, category, price, unit, image, ingredients, recipe, badge, badgeShape });
       showToast('Đã thêm món mới');
     }
 
@@ -4412,7 +5026,19 @@ function showEditFoodModal(itemId = null) {
   // Init badge picker selection state from item
   const picker = document.getElementById('badge-picker');
   if (picker) picker.dataset.selected = item?.badge || '';
+
+  // Init badge shape picker
+  const shapePicker = document.getElementById('badge-shape-picker');
+  if (shapePicker) shapePicker.dataset.selected = item?.badgeShape || 'pill';
 }
+
+// ── Badge shape picker helper ─────────────────────────────────
+window.selectBadgeShape = function(shape, el) {
+  const picker = document.getElementById('badge-shape-picker');
+  if (picker) picker.dataset.selected = shape;
+  document.querySelectorAll('.shape-opt').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+};
 
 // ── Badge picker helpers ──────────────────────────────────────
 window.selectBadge = function(key, el) {
@@ -4424,11 +5050,11 @@ window.selectBadge = function(key, el) {
       b.className = b.className.replace(/border-slate-800 bg-slate-800 text-white/g, '');
       b.className = b.className.replace(/border-slate-200 bg-white text-slate-500/g, '');
     }
-    b.classList.remove('border-slate-800', 'scale-105', 'shadow-md');
-    b.classList.add('opacity-80');
+    b.classList.remove('border-slate-800', 'border-slate-900', 'scale-105', 'scale-110', 'shadow-md', 'shadow-lg');
+    b.classList.add('opacity-90');
   });
-  el.classList.add('border-slate-800', 'scale-105', 'shadow-md');
-  el.classList.remove('opacity-80');
+  el.classList.add('border-slate-900', 'scale-110', 'shadow-lg');
+  el.classList.remove('opacity-80', 'opacity-90');
   if (!key) {
     // "Không nhãn"
     el.classList.add('bg-slate-800', 'text-white');
@@ -4441,9 +5067,9 @@ window.addCustomBadge = function() {
   const text  = input?.value.trim();
   if (!text) { showToast('Nhập tên nhãn!', 'error'); return; }
   const key = 'custom_' + Date.now();
-  const colors = ['from-orange-500 to-pink-400','from-teal-500 to-cyan-400','from-indigo-500 to-blue-400','from-rose-500 to-pink-400'];
+  const colors = ['from-orange-500 via-pink-500 to-rose-500','from-teal-400 via-cyan-400 to-blue-500','from-indigo-500 via-violet-500 to-fuchsia-500','from-lime-400 via-emerald-500 to-teal-500'];
   const color  = colors[Math.floor(Math.random() * colors.length)];
-  const newBadge = { key, text, color };
+  const newBadge = { key, text, icon: text.charAt(0).toUpperCase(), color };
   if (!state.settings.customBadges) state.settings.customBadges = [];
   state.settings.customBadges.push(newBadge);
   schedulePersist();
@@ -4453,8 +5079,8 @@ window.addCustomBadge = function() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.key = key;
-    btn.className = `badge-opt px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all bg-gradient-to-r ${color} text-white border-transparent opacity-80 hover:opacity-100 hover:scale-105`;
-    btn.textContent = text;
+    btn.className = `badge-opt px-3 py-1.5 rounded-full text-xs font-extrabold border-2 transition-all bg-gradient-to-r ${color} text-white border-white/70 opacity-90 hover:opacity-100 hover:scale-110 hover:shadow-lg`;
+    btn.innerHTML = `<span class="inline-flex items-center gap-1"><span class="bg-white text-orange-600 rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]">${newBadge.icon}</span>${text}</span>`;
     btn.onclick = () => window.selectBadge(key, btn);
     picker.insertBefore(btn, picker.lastElementChild.nextSibling);
     window.selectBadge(key, btn);
