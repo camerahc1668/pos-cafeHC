@@ -2670,7 +2670,41 @@ function renderTables() {
           ${statusBadges[table.status]}
         </div>
         ${table.customerName ? `<div class="text-xs text-slate-600 mb-1 flex items-center gap-1"><svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg><span class="truncate">${table.customerName}</span></div>` : ''}
-        ${table.status === 'occupied' && table.orderId && state.orders[table.orderId] ? `<div class="text-xs text-slate-500 mb-1.5">🍽 ${state.orders[table.orderId].items.length} món · ${formatCurrency(state.orders[table.orderId].items.reduce((s,i)=>s+i.price*i.qty,0))}</div>` : ''}
+        ${(() => {
+          if (table.status !== 'occupied') return '';
+          const ord = table.orderId ? state.orders[table.orderId] : null;
+          const cartItems = ord?.items || [];
+
+          let totalQty = 0, totalAmt = 0, label = '';
+
+          if (cartItems.length > 0) {
+            // Giỏ hàng đã có món → chỉ dùng giỏ, không cộng thêm bếp
+            totalQty = cartItems.reduce((s, i) => s + (i.qty || 0), 0);
+            totalAmt = cartItems.reduce((s, i) => s + (i.price || 0) * (i.qty || 0), 0);
+            label = '🍽 ' + totalQty + ' món · ' + formatCurrency(totalAmt);
+          } else {
+            // Giỏ trống → tính từ kitchen orders chưa thanh toán
+            const kitchenOrders = (state.kitchenOrders || [])
+              .filter(ko => ko.tableId === table.id && !ko.txId);
+            if (kitchenOrders.length === 0) return '';
+            // Gộp items theo tên để tránh trùng
+            const merged = {};
+            kitchenOrders.forEach(ko => {
+              ko.items.forEach(ki => {
+                const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
+                const price = mi ? mi.price : 0;
+                if (!price) return;
+                merged[ki.name] = (merged[ki.name] || 0) + ki.qty;
+                totalAmt += price * ki.qty;
+              });
+            });
+            totalQty = Object.values(merged).reduce((s, q) => s + q, 0);
+            if (totalQty === 0) return '';
+            label = '🍽 ' + totalQty + ' món · ' + formatCurrency(totalAmt) + ' <span style="color:#f59e0b">(đơn bếp)</span>';
+          }
+
+          return '<div class="text-xs text-slate-600 mb-1.5 font-semibold">' + label + '</div>';
+        })()}
 
         <!-- Action buttons row -->
         <div class="flex gap-1.5 mt-2">
@@ -2733,11 +2767,56 @@ function selectTable(tableId) {
   document.querySelector('[data-order-type="table"]').classList.add('bg-gradient-to-r', 'from-orange-500', 'to-pink-500', 'text-white', 'shadow-md');
   
   if (table.status === 'empty') {
-    table.status = 'occupied';
+    // Bàn trống → mở mới
+    table.status  = 'occupied';
     table.orderId = generateOrderId();
     state.orders[table.orderId] = {items: [], discount: 0, note: '', customerId: null};
+  } else if (table.status === 'occupied' && table.orderId) {
+    // Bàn đang mở — đảm bảo order object tồn tại
+    if (!state.orders[table.orderId]) {
+      state.orders[table.orderId] = {items: [], discount: 0, note: '', customerId: null};
+    }
+    // Nếu giỏ hàng trống nhưng có kitchen orders chưa thanh toán → khôi phục
+    const order = state.orders[table.orderId];
+    if (!order.items || order.items.length === 0) {
+      const pendingKitchen = (state.kitchenOrders || []).filter(
+        ko => ko.tableId === tableId && !ko.txId
+      );
+      if (pendingKitchen.length > 0) {
+        // Gộp tất cả items từ kitchen orders
+        const merged = {};
+        pendingKitchen.forEach(ko => {
+          ko.items.forEach(ki => {
+            const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
+            if (!mi || !mi.price) return;
+            const key = ki.id + '_' + (ki.note || '');
+            if (merged[key]) {
+              merged[key].qty += ki.qty;
+            } else {
+              merged[key] = {
+                id: mi.id, name: mi.name, qty: ki.qty,
+                note: ki.note || '', price: mi.price,
+                unit: mi.unit, image: mi.image, category: mi.category
+              };
+            }
+          });
+        });
+        order.items = Object.values(merged);
+        // Đánh dấu txId cho các kitchen orders này để không bị lấy lại
+        // (sẽ set txId sau khi checkout thật sự)
+        schedulePersist();
+        showToast('♻️ Đã khôi phục ' + order.items.length + ' món vào giỏ từ đơn bếp');
+      }
+    }
   }
   
+  // Auto-mở cart khi chọn bàn có đồ
+  const ord = state.orders[table.orderId];
+  if (ord && ord.items && ord.items.length > 0 && !_cartOpen) {
+    _cartOpen = true;
+    _applyCartState();
+  }
+
   renderTables();
   renderCart();
 }
@@ -4110,24 +4189,18 @@ document.getElementById('btn-checkout').addEventListener('click', () => {
 
     state.transactions.push(transaction);
 
-    // ── Đẩy lên bếp ──────────────────────────────────────────
-    const kitchenEntry = {
-      id: 'KT' + Date.now(),
-      txId: transaction.id,
-      tableId: transaction.tableId || null,
-      tableName: isTakeaway ? `Mang về #${transaction.takeawayId}` : (state.tables.find(t => t.id === transaction.tableId)?.name || 'Bàn'),
-      customerName: custDisplayName,
-      items: transaction.items.map(i => ({ id:i.id, name:i.name, qty:i.qty, note:i.note||'' })),
-      note: order.note || '',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      startedAt: null,
-      doneAt: null,
-    };
-    if (!Array.isArray(state.kitchenOrders)) state.kitchenOrders = [];
-    state.kitchenOrders.push(kitchenEntry);
-    fbSyncKitchenOrder(kitchenEntry);
-    updateKitchenBadge();
+    // ── Đánh dấu txId vào các kitchen orders cũ của bàn/mang về này ──
+    // (các đơn gửi bếp trước đó, chưa thanh toán)
+    if (!isTakeaway && transaction.tableId) {
+      (state.kitchenOrders || [])
+        .filter(ko => ko.tableId === transaction.tableId && !ko.txId)
+        .forEach(ko => { ko.txId = transaction.id; });
+    } else if (isTakeaway && transaction.takeawayId) {
+      const twName = `Mang về #${transaction.takeawayId}`;
+      (state.kitchenOrders || [])
+        .filter(ko => ko.tableName === twName && !ko.txId)
+        .forEach(ko => { ko.txId = transaction.id; });
+    }
 
     // Trừ kho nguyên liệu khi bán
     deductInventoryOnSale(orderCopy.items);
@@ -6520,9 +6593,8 @@ function kitchenCard(o) {
       </div>`;
   }
 
-  // ── Payment status block (chỉ hiện khi isD) ────────────
+  // ── Payment status block (hiện ở mọi trạng thái) ─────────
   function paymentStatusBlock() {
-    if (!isD) return '';
 
     if (isPaid && !hasDebt) {
       // Đã thanh toán đủ
@@ -6616,7 +6688,7 @@ function kitchenCard(o) {
 
     ${o.note ? `<div class="text-xs italic text-slate-500 bg-white/70 border border-slate-100 rounded-xl px-3 py-2 mb-3">🗒 ${o.note}</div>` : ''}
 
-    <!-- Payment status (done only) -->
+    <!-- Payment status -->
     ${paymentStatusBlock()}
 
     <!-- Action buttons -->
@@ -6656,38 +6728,224 @@ window.kitchenShowReceipt = function(txId) {
 };
 
 window.kitchenOpenPayment = function(kitchenId) {
-  // Đơn gửi bếp chưa có txId — điều hướng về tab đặt hàng đúng bàn
+  // Đơn gửi bếp chưa có txId — điều hướng về bàn để thanh toán
   const o = (state.kitchenOrders || []).find(x => x.id === kitchenId);
   if (!o) return;
 
-  if (o.tableId) {
-    // Mở bàn và chuyển sang tab Order
-    state.currentTableId = o.tableId;
-    state.currentOrderType = 'table';
-    const table = state.tables.find(t => t.id === o.tableId);
-    if (table && table.status === 'occupied' && table.orderId && state.orders[table.orderId]) {
-      // Bàn vẫn còn mở → nhảy về giỏ hàng
-      document.querySelector('[data-tab="menu"]')?.click();
-      renderCart();
-      showToast(`Chuyển về ${table.name} để thanh toán`);
-    } else {
-      showToast('Bàn đã đóng — vui lòng tạo đơn mới', 'error');
+  // ── Hàm chung: chuyển sang tab Tables + mở cart + kích nút Thanh toán ──
+  function goToTableAndCheckout(tableId) {
+    state.currentTableId    = tableId;
+    state.currentTakeawayId = null;
+    state.currentOrderType  = 'table';
+
+    // Chuyển order-type về "Tại bàn"
+    document.querySelectorAll('.order-type-btn').forEach(b => {
+      b.classList.remove('bg-gradient-to-r','from-orange-500','to-pink-500','text-white','shadow-md');
+      b.classList.add('text-slate-600');
+    });
+    const tableBtn = document.querySelector('[data-order-type="table"]');
+    if (tableBtn) {
+      tableBtn.classList.add('bg-gradient-to-r','from-orange-500','to-pink-500','text-white','shadow-md');
+      tableBtn.classList.remove('text-slate-600');
     }
+
+    // Chuyển sang tab Bàn
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('border-orange-500','text-orange-600');
+      b.classList.add('border-transparent','text-slate-500');
+    });
+    document.querySelectorAll('[data-tab-content]').forEach(c => c.classList.remove('active'));
+    const tablesBtn = document.querySelector('[data-tab="tables"]');
+    if (tablesBtn) {
+      tablesBtn.classList.add('border-orange-500','text-orange-600');
+      tablesBtn.classList.remove('border-transparent','text-slate-500');
+    }
+    const tablesContent = document.querySelector('[data-tab-content="tables"]');
+    if (tablesContent) tablesContent.classList.add('active');
+
+    renderTables();
+    renderCart();
+
+    // Mở cart panel
+    if (!_cartOpen) {
+      _cartOpen = true;
+      _applyCartState();
+    }
+
+    const table = state.tables.find(t => t.id === tableId);
+    const tableName = table ? table.name : `Bàn #${tableId}`;
+    showToast(`📍 Đã chuyển về ${tableName} — Nhấn "Thanh toán" để tiến hành`);
+  }
+
+  // ── Hàm chung: chuyển sang Mang về ──────────────────────
+  function goToTakeawayAndCheckout(twId) {
+    state.currentTakeawayId = twId;
+    state.currentTableId    = null;
+    state.currentOrderType  = `takeaway-${twId}`;
+
+    // Chuyển order-type button
+    document.querySelectorAll('.order-type-btn').forEach(b => {
+      b.classList.remove('bg-gradient-to-r','from-orange-500','to-pink-500','text-white','shadow-md');
+      b.classList.add('text-slate-600');
+    });
+    const twBtn = document.querySelector(`[data-order-type="takeaway-${twId}"]`);
+    if (twBtn) {
+      twBtn.classList.add('bg-gradient-to-r','from-orange-500','to-pink-500','text-white','shadow-md');
+      twBtn.classList.remove('text-slate-600');
+    }
+
+    // Chuyển sang tab Mang về
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('border-orange-500','text-orange-600');
+      b.classList.add('border-transparent','text-slate-500');
+    });
+    document.querySelectorAll('[data-tab-content]').forEach(c => c.classList.remove('active'));
+    const takeawayBtn = document.querySelector('[data-tab="takeaway"]');
+    if (takeawayBtn) {
+      takeawayBtn.classList.add('border-orange-500','text-orange-600');
+      takeawayBtn.classList.remove('border-transparent','text-slate-500');
+    }
+    const takeawayContent = document.querySelector('[data-tab-content="takeaway"]');
+    if (takeawayContent) takeawayContent.classList.add('active');
+
+    renderTakeaway();
+    renderCart();
+
+    if (!_cartOpen) {
+      _cartOpen = true;
+      _applyCartState();
+    }
+
+    showToast(`📦 Đã chuyển về Mang về #${twId} — Nhấn "Thanh toán" để tiến hành`);
+  }
+
+  // ── Xử lý theo loại đơn ─────────────────────────────────
+  if (o.tableId) {
+    const table = state.tables.find(t => t.id === o.tableId);
+
+    if (!table) {
+      showToast('Không tìm thấy bàn trong hệ thống', 'error');
+      return;
+    }
+
+    // Helper: map kitchen items → full menu items
+    function mapKitchenItems(kitchenItems) {
+      return kitchenItems.map(ki => {
+        const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
+        return {
+          id:       ki.id || (mi ? mi.id : Date.now()),
+          name:     ki.name,
+          qty:      ki.qty,
+          note:     ki.note || '',
+          price:    mi ? mi.price : 0,
+          unit:     mi ? mi.unit : '',
+          image:    mi ? mi.image : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+          category: mi ? mi.category : ''
+        };
+      }).filter(i => i.price > 0);
+    }
+
+    if (table.status === 'empty') {
+      // Bàn đã đóng hoàn toàn — mở lại bàn mới
+      table.status  = 'occupied';
+      table.orderId = generateOrderId();
+      state.orders[table.orderId] = {
+        items:      mapKitchenItems(o.items),
+        discount:   0,
+        note:       o.note || '',
+        customerId: null,
+      };
+      persistState();
+      showToast(`🔓 Đã mở lại ${table.name} với đơn từ bếp`);
+
+    } else if (table.status === 'occupied' && table.orderId) {
+      // Bàn vẫn mở — kiểm tra giỏ hàng có trống không
+      const existingOrder = state.orders[table.orderId];
+      if (!existingOrder) {
+        // orderId tồn tại nhưng order đã bị xóa — tạo mới
+        state.orders[table.orderId] = {
+          items:      mapKitchenItems(o.items),
+          discount:   0,
+          note:       o.note || '',
+          customerId: null,
+        };
+        persistState();
+        showToast(`♻️ Đã khôi phục đơn vào ${table.name}`);
+      } else if (!existingOrder.items || existingOrder.items.length === 0) {
+        // Giỏ hàng trống (sau khi gửi bếp) — khôi phục items từ kitchen order
+        existingOrder.items = mapKitchenItems(o.items);
+        if (!existingOrder.note && o.note) existingOrder.note = o.note;
+        persistState();
+        showToast(`♻️ Đã khôi phục ${o.items.length} món vào giỏ ${table.name}`);
+      }
+      // Nếu giỏ đã có món (gọi thêm) → giữ nguyên, không ghi đè
+    }
+
+    goToTableAndCheckout(o.tableId);
+
   } else if (o.tableName && o.tableName.startsWith('Mang về')) {
-    // Mang về
-    const twId = parseInt(o.tableName.replace(/\D/g,''));
+    const twId = parseInt(o.tableName.replace(/\D/g, ''), 10);
     if (twId >= 1 && twId <= 3) {
-      state.currentTakeawayId = twId;
-      state.currentOrderType  = `takeaway-${twId}`;
-      document.querySelector('[data-tab="tables"]')?.click();
-      setTimeout(() => {
-        document.querySelector('[data-order-type="takeaway"]')?.click();
-        showToast(`Chuyển về Mang về #${twId} để thanh toán`);
-      }, 100);
+      const twOrder = state.takeawayOrders[twId];
+      if (!twOrder.items || twOrder.items.length === 0) {
+        // Khôi phục items từ kitchen order vào mang về
+        twOrder.items = o.items.map(ki => {
+          const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
+          return { id: ki.id || (mi ? mi.id : Date.now()), name: ki.name, qty: ki.qty, note: ki.note || '',
+            price: mi ? mi.price : 0, unit: mi ? mi.unit : '', image: mi ? mi.image : '', category: mi ? mi.category : '' };
+        }).filter(i => i.price > 0);
+        twOrder.note = o.note || '';
+      }
+      goToTakeawayAndCheckout(twId);
+    } else {
+      showToast('Vui lòng thanh toán tại quầy thu ngân', 'error');
     }
   } else {
-    showToast('Vui lòng thanh toán tại quầy thu ngân', 'error');
+    // Không xác định được bàn/mang về — hiện modal chọn bàn
+    showModal(`
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-scale">
+        <div class="p-5 border-b border-slate-200">
+          <h3 class="font-extrabold text-slate-800 text-lg">💳 Chọn bàn để thanh toán</h3>
+          <p class="text-xs text-slate-400 mt-1">Đơn bếp: ${o.tableName || 'Không rõ'} · ${o.items.map(i=>i.name+'×'+i.qty).join(', ')}</p>
+        </div>
+        <div class="p-4 space-y-2 max-h-64 overflow-y-auto">
+          ${state.tables.filter(t => t.status === 'occupied').map(t => `
+            <button onclick="hideModal();kitchenOpenPaymentForTable('${o.id}',${t.id})"
+              class="w-full flex items-center justify-between p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left">
+              <span class="font-bold text-slate-800">${t.name}</span>
+              <span class="text-xs text-orange-600">Có khách · Chọn →</span>
+            </button>`).join('') || '<p class="text-sm text-slate-400 text-center py-4">Không có bàn nào đang mở</p>'}
+          <div class="border-t border-slate-100 pt-2">
+            <p class="text-xs text-slate-500 font-semibold mb-2">Mang về:</p>
+            ${[1,2,3].map(id=>`
+              <button onclick="hideModal();kitchenOpenPaymentForTakeaway('${o.id}',${id})"
+                class="w-full flex items-center justify-between p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors text-left mb-1">
+                <span class="font-semibold text-slate-700 text-sm">Mang về #${id}</span>
+                <span class="text-xs text-blue-600">Chọn →</span>
+              </button>`).join('')}
+          </div>
+        </div>
+        <div class="p-4 border-t border-slate-200">
+          <button onclick="hideModal()" class="w-full py-2.5 bg-slate-100 text-slate-600 rounded-xl font-semibold text-sm">Đóng</button>
+        </div>
+      </div>
+    `);
   }
+};
+
+// Helper: gán thủ công kitchen order vào bàn cụ thể
+window.kitchenOpenPaymentForTable = function(kitchenId, tableId) {
+  const o = (state.kitchenOrders || []).find(x => x.id === kitchenId);
+  if (!o) return;
+  o.tableId = tableId;
+  window.kitchenOpenPayment(kitchenId);
+};
+window.kitchenOpenPaymentForTakeaway = function(kitchenId, twId) {
+  const o = (state.kitchenOrders || []).find(x => x.id === kitchenId);
+  if (!o) return;
+  o.tableName = `Mang về #${twId}`;
+  o.tableId   = null;
+  window.kitchenOpenPayment(kitchenId);
 };
 
 window.kitchenPayDebt = function(kitchenId, txId) {
@@ -6830,21 +7088,20 @@ function kitchenAction(id, newStatus) {
 }
 
 function kitchenDeleteOne(id) {
-  if (!confirm('Xóa đơn này khỏi lịch sử?')) return;
   state.kitchenOrders = (state.kitchenOrders || []).filter(x => x.id !== id);
-  schedulePersist(); renderKitchen();
+  persistState();
+  renderKitchen();
+  showToast('🗑 Đã xóa đơn');
 }
 
 function clearDoneKitchen() {
-  const sel = document.getElementById('kitchen-time-filter');
-  const label = sel ? sel.options[sel.selectedIndex]?.text : 'hiện tại';
   const done = filterKitchenByTime(state.kitchenOrders || []).filter(o => o.status === 'done');
   if (!done.length) { showToast('Không có đơn hoàn thành để xóa'); return; }
-  if (!confirm(`Xóa ${done.length} đơn đã hoàn thành (${label})?\nThao tác không thể hoàn tác.`)) return;
   const doneIds = new Set(done.map(o => o.id));
   state.kitchenOrders = (state.kitchenOrders || []).filter(o => !doneIds.has(o.id));
-  schedulePersist(); renderKitchen();
-  showToast(`🗑 Đã xóa ${done.length} đơn hoàn thành`);
+  persistState();
+  renderKitchen();
+  showToast('🗑 Đã xóa ' + done.length + ' đơn hoàn thành');
 }
 
 function toggleKitchenAutoRefresh() {
