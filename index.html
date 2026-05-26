@@ -4472,30 +4472,81 @@ function toggleDarkMode() {
 //  TEXT-TO-SPEECH — đọc tiếng Việt
 // ══════════════════════════════════════════════════
 let _ttsEnabled = localStorage.getItem('pos_tts') !== '0'; // bật mặc định
+let _ttsVoices = [];
+let _ttsReady = false;
+let _ttsPendingQueue = [];
 
-function speakVietnamese(text) {
-  if (!_ttsEnabled) return;
+// Load voices — iOS/Android lazy load, cần chờ onvoiceschanged
+function _loadVoices() {
   if (!('speechSynthesis' in window)) return;
+  const v = window.speechSynthesis.getVoices();
+  if (v && v.length > 0) {
+    _ttsVoices = v;
+    _ttsReady = true;
+    // Flush pending
+    while (_ttsPendingQueue.length) {
+      const t = _ttsPendingQueue.shift();
+      _doSpeak(t);
+    }
+  }
+}
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = _loadVoices;
+  // Try immediately (desktop Chrome)
+  _loadVoices();
+  // Fallback: retry vài lần cho Android/iOS
+  let _retryCount = 0;
+  const _retryTimer = setInterval(() => {
+    _loadVoices();
+    _retryCount++;
+    if (_ttsReady || _retryCount > 10) clearInterval(_retryTimer);
+  }, 300);
+}
+
+function _doSpeak(text) {
   try {
+    // iOS Safari: cancel trước để tránh queue bị kẹt
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    // Ưu tiên giọng tiếng Việt, fallback sang giọng bất kỳ
-    const voices = window.speechSynthesis.getVoices();
-    const viVoice = voices.find(v => v.lang.startsWith('vi')) ||
-                    voices.find(v => v.lang.startsWith('vi-VN')) ||
-                    null;
-    if (viVoice) utter.voice = viVoice;
     utter.lang = 'vi-VN';
-    utter.rate = 0.92;
+    utter.rate = 0.9;
     utter.pitch = 1.05;
     utter.volume = 1;
+
+    // Tìm giọng VI, fallback bất kỳ giọng local
+    const viVoice = _ttsVoices.find(v => v.lang === 'vi-VN') ||
+                    _ttsVoices.find(v => v.lang.startsWith('vi')) ||
+                    _ttsVoices.find(v => v.localService) ||
+                    (_ttsVoices.length > 0 ? _ttsVoices[0] : null);
+    if (viVoice) utter.voice = viVoice;
+
+    // iOS workaround: TTS đôi khi ngừng giữa chừng, dùng resume trick
+    utter.onstart = () => {
+      const resumeTimer = setInterval(() => {
+        if (!window.speechSynthesis.speaking) { clearInterval(resumeTimer); return; }
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 5000);
+      utter.onend = () => clearInterval(resumeTimer);
+      utter.onerror = () => clearInterval(resumeTimer);
+    };
+
     window.speechSynthesis.speak(utter);
   } catch(e) {}
 }
 
-// Chờ voices load xong (Chrome lazy-load)
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+function speakVietnamese(text) {
+  if (!_ttsEnabled) return;
+  if (!('speechSynthesis' in window)) return;
+  if (_ttsReady) {
+    _doSpeak(text);
+  } else {
+    // Queue lại, sẽ phát sau khi voices load xong
+    _ttsPendingQueue.push(text);
+    // Thử load lại ngay
+    _loadVoices();
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -6714,10 +6765,18 @@ function filterKitchenByTime(orders) {
   if (!f) {
     // "all today" = từ 00:00 hôm nay
     const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
-    return orders.filter(o => new Date(o.createdAt) >= startOfDay);
+    return orders.filter(o => {
+      // Đơn pending/cooking mà thiếu/sai createdAt → luôn hiển thị
+      if (!o.createdAt) return o.status !== 'done';
+      const t = new Date(o.createdAt);
+      if (isNaN(t.getTime())) return o.status !== 'done';
+      return t >= startOfDay;
+    });
   }
   return orders.filter(o => {
+    if (!o.createdAt) return o.status !== 'done';
     const t = new Date(o.createdAt);
+    if (isNaN(t.getTime())) return o.status !== 'done';
     if (f.from && t < f.from) return false;
     if (f.to   && t > f.to)   return false;
     return true;
@@ -6845,14 +6904,14 @@ function kitchenCard(o) {
           ${o.customerName ? `<span class="badge bg-white border border-slate-200 text-slate-600 text-xs">👤 ${o.customerName}</span>` : ''}
         </div>
         <div class="text-xs text-slate-400 mt-0.5">
-          ${new Date(o.createdAt).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+          ${o.createdAt && !isNaN(new Date(o.createdAt)) ? new Date(o.createdAt).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--:--'}
         </div>
       </div>
       <div class="text-right shrink-0">
         ${isD
-          ? `<div class="text-xs font-bold text-emerald-600">✓ ${elapsedStr(o.startedAt||o.createdAt, o.doneAt)}</div>
-             <div class="text-xs text-slate-400">Tổng: ${elapsedStr(o.createdAt, o.doneAt)}</div>`
-          : `<div class="kitchen-timer text-sm font-extrabold ${elapsedClass(o.createdAt)}" data-from="${o.createdAt}">${elapsedStr(o.createdAt, null)}</div>
+          ? `<div class="text-xs font-bold text-emerald-600">✓ ${elapsedStr(o.startedAt||o.createdAt||new Date().toISOString(), o.doneAt)}</div>
+             <div class="text-xs text-slate-400">Tổng: ${elapsedStr(o.createdAt||new Date().toISOString(), o.doneAt)}</div>`
+          : `<div class="kitchen-timer text-sm font-extrabold ${elapsedClass(o.createdAt||new Date().toISOString())}" data-from="${o.createdAt||new Date().toISOString()}">${elapsedStr(o.createdAt||new Date().toISOString(), null)}</div>
              <div class="text-xs text-slate-400">Chờ</div>`
         }
       </div>
@@ -8315,6 +8374,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!btn.type) btn.type='button';
   });
 });
+
+// iOS Safari: unlock Web Speech API bằng silent utterance tại gesture đầu tiên
+(function() {
+  let _ttsUnlocked = false;
+  function _unlockTTS() {
+    if (_ttsUnlocked || !('speechSynthesis' in window)) return;
+    _ttsUnlocked = true;
+    try {
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      u.lang = 'vi-VN';
+      window.speechSynthesis.speak(u);
+    } catch(e) {}
+    // Reload voices after unlock (iOS)
+    setTimeout(_loadVoices, 200);
+    ['touchstart','mousedown','keydown'].forEach(ev =>
+      document.removeEventListener(ev, _unlockTTS, true)
+    );
+  }
+  ['touchstart','mousedown','keydown'].forEach(ev =>
+    document.addEventListener(ev, _unlockTTS, { capture: true, once: true })
+  );
+})();
 
 // ══════════════════════════════════════════════════
 //  HELPER: format datetime for filenames & display
