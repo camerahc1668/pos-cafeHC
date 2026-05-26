@@ -2085,10 +2085,12 @@ function initFirebase(cfg) {
     firebase.initializeApp(cfg);
     _db = firebase.database();
     _fbShopId = (cfg.shopId || 'shop1').replace(/[.#$[\]]/g, '_');
-    _fbReady = true;
+    _fbReady = false; // Chờ auth xong mới set true
 
-    // Anonymous auth để có UID
-    firebase.auth().signInAnonymously().catch(() => {});
+    // Anonymous auth — bắt buộc có UID mới write được (rules: auth != null)
+    firebase.auth().signInAnonymously()
+      .then(() => { _fbReady = true; })
+      .catch(() => { _fbReady = true; }); // Fallback: thử write dù auth fail
 
     // Listen connection state
     _db.ref('.info/connected').on('value', snap => {
@@ -7329,8 +7331,15 @@ function toggleKitchenAutoRefresh() {
       const fbcObj = JSON.parse(fbcJson);
       fbcObj.shopId = shopIdFromUrl || fbcObj.shopId || 'shop1';
       initFirebase(fbcObj);
-      // Đợi Firebase sẵn sàng
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Chờ auth xong (tối đa 5 giây)
+      await new Promise(resolve => {
+        if (_fbReady) { resolve(); return; }
+        let tries = 0;
+        const t = setInterval(() => {
+          tries++;
+          if (_fbReady || tries > 50) { clearInterval(t); resolve(); }
+        }, 100);
+      });
     } catch(e) { console.warn('QR Firebase init failed:', e); }
   }
 
@@ -7544,6 +7553,10 @@ function renderQROrderPage(data) {
     const tableNote = document.getElementById('qr-table-note').value.trim();
     if (!name) { alert('Vui lòng nhập tên của bạn!'); return; }
     if (!cart.length) { alert('Bạn chưa chọn món nào!'); return; }
+
+    // Disable nút, hiện loading
+    const btn = document.querySelector('[onclick="qrSubmitOrder()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang gửi...'; }
     const order = {
       id: 'QR' + Date.now(),
       tableId, tableName, customerName: name, customerPhone: phone,
@@ -7554,6 +7567,20 @@ function renderQROrderPage(data) {
     };
     // Firebase first, localStorage fallback
     let sent = false;
+
+    // Chờ Firebase auth xong (tối đa 5 giây)
+    if (_db && _fbShopId) {
+      const waitReady = new Promise(resolve => {
+        if (_fbReady) { resolve(); return; }
+        let tries = 0;
+        const t = setInterval(() => {
+          tries++;
+          if (_fbReady || tries > 50) { clearInterval(t); resolve(); }
+        }, 100);
+      });
+      await waitReady;
+    }
+
     if (_fbReady && _db && _fbShopId) {
       try {
         await _db.ref(`pos_data/${_fbShopId}/pending_orders/${order.id}`).set(order);
@@ -7562,6 +7589,10 @@ function renderQROrderPage(data) {
     }
     if (!sent) {
       localStorage.setItem('pos_new_order_' + tableId, JSON.stringify(order));
+      // Thông báo cho khách biết gửi thất bại (không có mạng/Firebase)
+      if (btn) { btn.disabled = false; btn.textContent = '🛎️ Gọi món'; }
+      alert('⚠️ Không gửi được đơn! Vui lòng kiểm tra kết nối mạng và thử lại.');
+      return;
     }
     // Success screen
     qrCloseCart();
