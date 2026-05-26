@@ -2133,6 +2133,15 @@ function initFirebase(cfg) {
     showToast('🔥 Firebase đã kết nối!');
     saveFBConfig(cfg);
     renderFBStatus();
+    // Đẩy menu data lên Firebase để trang QR của khách đọc được
+    try {
+      const menuSnap = {
+        shop: { name: state.settings?.shopName || '', addr: state.settings?.shopAddress || '', phone: state.settings?.shopPhone || '' },
+        menu: (state.menuItems || []).map(m => ({ id: m.id, name: m.name, category: m.category, price: m.price, image: m.image, unit: m.unit })),
+        updatedAt: Date.now()
+      };
+      _db.ref(`pos_data/${_fbShopId}/menu_data`).set(menuSnap);
+    } catch(e) {}
   } catch(err) {
     _fbReady = false;
     showToast('❌ Lỗi Firebase: ' + err.message, 'error');
@@ -2965,6 +2974,18 @@ function selectTable(tableId) {
   renderCart();
 }
 
+// ── Base64 encode/decode helpers (hỗ trợ Unicode) ────────────
+function b64EncodeUnicode(str) {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p1) => String.fromCharCode('0x' + p1)));
+  } catch(e) { return ''; }
+}
+function b64DecodeUnicode(str) {
+  try {
+    return decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  } catch(e) { return ''; }
+}
+
 // ── QR ORDER cho từng bàn ────────────────────────────────────
 function getPublicBaseUrl() {
   const custom = (state.settings?.publicUrl || '').toString().trim();
@@ -3004,6 +3025,9 @@ function getTableMenuPageUrl(tableId) {
     if (encoded) params.set('fbc', encoded);
   }
   params.set('table', String(tableId));
+  // Thêm tên bàn để trang khách hiển thị đúng
+  const tableObj2 = state.tables.find(t => t.id === tableId);
+  if (tableObj2) params.set('tname', encodeURIComponent(tableObj2.name));
   const q = params.toString();
   return `${baseUrl}${q ? '?' + q : ''}#qr-order-${tableId}`;
 }
@@ -7285,21 +7309,54 @@ function toggleKitchenAutoRefresh() {
 (async function() {
   const hash = window.location.hash;
   const m = hash.match(/^#qr-order-(\d+)$/);
-  const qTable = parseInt(new URLSearchParams(window.location.search).get('table') || '0', 10);
+  const urlParams = new URLSearchParams(window.location.search);
+  const qTable = parseInt(urlParams.get('table') || '0', 10);
   const tableId = m ? parseInt(m[1], 10) : qTable;
   if (!tableId) return;
+
   // Render QR order page — hide POS UI, show customer menu
   document.getElementById('app').style.display = 'none';
   document.getElementById('cart-backdrop').style.display = 'none';
   document.getElementById('cart-panel').style.display = 'none';
   document.body.style.background = '#faf5ff';
 
-  // Try reading menu data saved by POS
-  let data = null;
-  try { data = JSON.parse(localStorage.getItem('pos_menu_data_' + tableId) || 'null'); } catch(e) {}
-  if (!data) {
-
+  // ── 1. Init Firebase từ URL param fbc ──────────────────────
+  const fbcEncoded = urlParams.get('fbc');
+  const shopIdFromUrl = urlParams.get('shop') || '';
+  if (fbcEncoded) {
+    try {
+      const fbcJson = b64DecodeUnicode(fbcEncoded);
+      const fbcObj = JSON.parse(fbcJson);
+      fbcObj.shopId = shopIdFromUrl || fbcObj.shopId || 'shop1';
+      initFirebase(fbcObj);
+      // Đợi Firebase sẵn sàng
+      await new Promise(resolve => setTimeout(resolve, 800));
+    } catch(e) { console.warn('QR Firebase init failed:', e); }
   }
+
+  // ── 2. Đọc menu từ Firebase hoặc localStorage ──────────────
+  let data = null;
+
+  // Thử Firebase trước
+  if (_fbReady && _db && _fbShopId) {
+    try {
+      const snap = await _db.ref(`pos_data/${_fbShopId}/menu_data`).once('value');
+      const fbMenu = snap.val();
+      if (fbMenu && fbMenu.menu && fbMenu.menu.length) {
+        data = { ...fbMenu, tableId, tableName: fbMenu.tableName || ('Bàn ' + tableId) };
+        // Cập nhật tableName đúng bàn
+        const tName = urlParams.get('tname');
+        if (tName) data.tableName = decodeURIComponent(tName);
+      }
+    } catch(e) { console.warn('Firebase menu load failed:', e); }
+  }
+
+  // Fallback: localStorage (khi cùng thiết bị)
+  if (!data) {
+    try { data = JSON.parse(localStorage.getItem('pos_menu_data_' + tableId) || 'null'); } catch(e) {}
+  }
+
+  // Fallback cuối: state hiện tại (nếu cùng thiết bị với POS)
   if (!data) {
     const tableObj = (state.tables || []).find(t => t.id === tableId);
     data = {
@@ -7311,15 +7368,16 @@ function toggleKitchenAutoRefresh() {
         phone: state.settings?.shopPhone || ''
       },
       menu: (state.menuItems || []).map(m => ({
-        id: m.id,
-        name: m.name,
-        category: m.category,
-        price: m.price,
-        image: m.image,
-        unit: m.unit
+        id: m.id, name: m.name, category: m.category,
+        price: m.price, image: m.image, unit: m.unit
       }))
     };
   }
+
+  // Đảm bảo tableName đúng từ URL nếu có
+  const tNameParam = urlParams.get('tname');
+  if (tNameParam) data.tableName = decodeURIComponent(tNameParam);
+
   renderQROrderPage(data);
 })();
 
