@@ -2113,6 +2113,32 @@ function initFirebase(cfg, qrMode) {
           if (!already) {
             if (!state.pendingOrders) state.pendingOrders = [];
             state.pendingOrders.push(po);
+
+            // ── TỰ ĐỘNG chuyển đơn QR vào bếp ngay (không cần duyệt thủ công) ──
+            if (!Array.isArray(state.kitchenOrders)) state.kitchenOrders = [];
+            const alreadyInKitchen = state.kitchenOrders.find(k => k.sourceOrderId === po.id);
+            if (!alreadyInKitchen) {
+              // Tìm bàn theo tên (tableName trong po)
+              const tbl = (state.tables || []).find(t => t.name === po.tableName);
+              state.kitchenOrders.push({
+                id: 'KT' + Date.now() + Math.floor(Math.random()*1000),
+                sourceOrderId: po.id,
+                txId: null,
+                tableId: tbl ? tbl.id : null,
+                tableName: po.tableName || 'QR Order',
+                customerName: po.customerName || '',
+                items: (po.items || []).map(i => ({ id: i.id, name: i.name, qty: i.qty, note: i.note || '' })),
+                note: po.tableNote || po.note || '',
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+                startedAt: null,
+                doneAt: null,
+              });
+              updateKitchenBadge();
+              renderKitchen();
+            }
+            // ────────────────────────────────────────────────────────────────────
+
             persistState();
             renderTables();
             pushNotification('📱 Khách gọi món!',
