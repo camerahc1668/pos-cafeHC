@@ -1724,6 +1724,9 @@ header > div:first-child > div:nth-child(2) {
             ⚠️ Kiểm tra kho
           </button>
           <span class="text-xs text-slate-400 italic">💡 Tự động lưu khi bạn nhập</span>
+          <button onclick="testTTS()" class="px-5 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+            🔊 Test đọc đơn
+          </button>
         </div>
 
         <!-- ═══ DATA MANAGEMENT ═══ -->
@@ -4504,9 +4507,19 @@ if ('speechSynthesis' in window) {
   }, 300);
 }
 
+function _hasViVoice() {
+  return _ttsVoices.some(v => v.lang === 'vi-VN' || v.lang.startsWith('vi'));
+}
+
+function _getBestVoice() {
+  return _ttsVoices.find(v => v.lang === 'vi-VN') ||
+         _ttsVoices.find(v => v.lang.startsWith('vi')) ||
+         _ttsVoices.find(v => v.localService) ||
+         (_ttsVoices.length > 0 ? _ttsVoices[0] : null);
+}
+
 function _doSpeak(text) {
   try {
-    // iOS Safari: cancel trước để tránh queue bị kẹt
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = 'vi-VN';
@@ -4514,14 +4527,9 @@ function _doSpeak(text) {
     utter.pitch = 1.05;
     utter.volume = 1;
 
-    // Tìm giọng VI, fallback bất kỳ giọng local
-    const viVoice = _ttsVoices.find(v => v.lang === 'vi-VN') ||
-                    _ttsVoices.find(v => v.lang.startsWith('vi')) ||
-                    _ttsVoices.find(v => v.localService) ||
-                    (_ttsVoices.length > 0 ? _ttsVoices[0] : null);
-    if (viVoice) utter.voice = viVoice;
+    const voice = _getBestVoice();
+    if (voice) utter.voice = voice;
 
-    // iOS workaround: TTS đôi khi ngừng giữa chừng, dùng resume trick
     utter.onstart = () => {
       const resumeTimer = setInterval(() => {
         if (!window.speechSynthesis.speaking) { clearInterval(resumeTimer); return; }
@@ -4532,22 +4540,46 @@ function _doSpeak(text) {
       utter.onerror = () => clearInterval(resumeTimer);
     };
 
+    // Nếu lỗi voice-unavailable → retry không chỉ định voice
+    utter.onerror = (e) => {
+      if (e.error === 'voice-unavailable' || e.error === 'synthesis-failed' || e.error === 'not-allowed') {
+        try {
+          const u2 = new SpeechSynthesisUtterance(text);
+          u2.lang = 'vi-VN';
+          u2.rate = 0.85;
+          u2.volume = 1;
+          window.speechSynthesis.speak(u2);
+        } catch(_) {}
+      }
+    };
+
     window.speechSynthesis.speak(utter);
   } catch(e) {}
 }
 
 function speakVietnamese(text) {
   if (!_ttsEnabled) return;
-  if (!('speechSynthesis' in window)) return;
+  if (!("speechSynthesis" in window)) return;
   if (_ttsReady) {
     _doSpeak(text);
   } else {
-    // Queue lại, sẽ phát sau khi voices load xong
     _ttsPendingQueue.push(text);
-    // Thử load lại ngay
     _loadVoices();
   }
 }
+
+// Cảnh báo nếu máy chưa cài giọng Tiếng Việt
+function _checkViVoiceWarning() {
+  if (!_ttsEnabled || _ttsVoices.length === 0 || _hasViVoice()) return;
+  if (document.getElementById("_vi_voice_warn")) return;
+  const warn = document.createElement("div");
+  warn.id = "_vi_voice_warn";
+  warn.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#fff;padding:10px 16px;border-radius:12px;font-size:12px;z-index:9999;text-align:center;max-width:340px;box-shadow:0 4px 12px rgba(0,0,0,0.25);line-height:1.5";
+  warn.innerHTML = "⚠️ Máy chưa có giọng <b>Tiếng Việt</b>.<br>Vào <b>Cài đặt → Trợ năng → Text-to-Speech</b> → tải giọng Tiếng Việt để đọc đơn. <span onclick=\"this.parentNode.remove()\" style=\"cursor:pointer;margin-left:6px;font-size:14px\">✕</span>";
+  document.body.appendChild(warn);
+  setTimeout(() => { try { warn.remove(); } catch(_) {} }, 15000);
+}
+setTimeout(_checkViVoiceWarning, 2500);
 
 // ══════════════════════════════════════════════════
 //  NOTIFY BADGE — chuông trên header
@@ -4607,6 +4639,20 @@ function pushNotification(title, body, icon = '⚠️') {
   }
   // TTS đọc tiếng Việt
   speakVietnamese(body);
+}
+
+function testTTS() {
+  if (!("speechSynthesis" in window)) {
+    showToast("❌ Trình duyệt không hỗ trợ đọc giọng nói", "error"); return;
+  }
+  const voices = window.speechSynthesis.getVoices();
+  const viVoice = voices.find(v => v.lang === "vi-VN") || voices.find(v => v.lang.startsWith("vi"));
+  if (!viVoice) {
+    showToast("⚠️ Chưa có giọng Tiếng Việt! Vào Cài đặt → Trợ năng → Text-to-Speech → tải giọng Tiếng Việt", "error");
+  } else {
+    showToast("✅ Đã tìm thấy giọng: " + viVoice.name);
+  }
+  speakVietnamese("Có đơn mới tại Bàn A2. Đá Me một, Cam Vắt hai.");
 }
 
 function checkStockLevels(silent = false) {
