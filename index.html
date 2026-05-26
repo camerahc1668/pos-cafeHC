@@ -2079,80 +2079,83 @@ function saveFBConfig(cfg) {
 }
 
 // ── Khởi tạo Firebase ──────────────────────────────────────
-// qrMode=true: chỉ init để write (trang khách), không đăng ký listeners POS
+// initFirebase: trả về Promise, resolve khi auth xong
+// qrMode=true → chỉ init db+auth, không đăng ký listeners POS
 function initFirebase(cfg, qrMode) {
-  const doInit = () => {
-    try {
-      firebase.initializeApp(cfg);
-      _db = firebase.database();
-      _fbShopId = (cfg.shopId || 'shop1').replace(/[.#$[\]]/g, '_');
-      _fbReady = false;
-
-      // Anonymous auth - bắt buộc để pass rules auth != null
-      firebase.auth().signInAnonymously()
-        .then(() => { _fbReady = true; })
-        .catch(() => { _fbReady = true; });
-
-      if (qrMode) return; // Trang khách không cần listeners POS
-
-      // POS: listen connection state
-      _db.ref('.info/connected').on('value', snap => {
-        updateFBStatusUI(snap.val() ? 'online' : 'reconnecting');
-      });
-
-      // POS: nhận đơn khách gọi qua QR
-      _db.ref(`pos_data/${_fbShopId}/pending_orders`).on('child_added', snap => {
-        const po = snap.val();
-        if (!po || !po.id) return;
-        const already = (state.pendingOrders || []).find(x => x.id === po.id);
-        if (!already) {
-          if (!state.pendingOrders) state.pendingOrders = [];
-          state.pendingOrders.push(po);
-          persistState();
-          renderTables();
-          pushNotification('📱 Khách gọi món!',
-            `Khách ${po.customerName||'vãng lai'} gọi món tại ${po.tableName}: ${(po.items||[]).map(i=>i.name+' x'+i.qty).join(', ')}`, '📱');
-        }
-        snap.ref.remove();
-      });
-
-      // POS: nhận kitchen updates từ thiết bị khác
-      _db.ref(`pos_data/${_fbShopId}/kitchen_updates`).on('child_added', snap => {
-        const update = snap.val();
-        if (!update || !update.id) { snap.ref.remove(); return; }
-        const existing = (state.kitchenOrders || []).find(x => x.id === update.id);
-        if (!existing) {
-          if (!state.kitchenOrders) state.kitchenOrders = [];
-          state.kitchenOrders.push(update);
-        } else { Object.assign(existing, update); }
-        persistState(); renderKitchen(); updateKitchenBadge();
-        snap.ref.remove();
-      });
-
-      showToast('🔥 Firebase đã kết nối!');
-      saveFBConfig(cfg);
-      renderFBStatus();
-      // Đẩy menu lên Firebase để trang QR khách đọc được
+  return new Promise((resolve) => {
+    const doInit = () => {
       try {
-        _db.ref(`pos_data/${_fbShopId}/menu_data`).set({
-          shop: { name: state.settings?.shopName||'', addr: state.settings?.shopAddress||'', phone: state.settings?.shopPhone||'' },
-          menu: (state.menuItems||[]).map(m=>({id:m.id,name:m.name,category:m.category,price:m.price,image:m.image,unit:m.unit})),
-          updatedAt: Date.now()
-        });
-      } catch(e) {}
-    } catch(err) {
-      _fbReady = false;
-      if (!qrMode) showToast('❌ Lỗi Firebase: ' + err.message, 'error');
-      console.error('Firebase init error:', err);
-    }
-  };
+        firebase.initializeApp(cfg);
+        _db = firebase.database();
+        _fbShopId = (cfg.shopId || 'shop1').replace(/[.#$[\]]/g, '_');
+        _fbReady = false;
 
-  // Xoá app cũ trước khi init mới
-  if (firebase.apps && firebase.apps.length) {
-    firebase.apps[0].delete().catch(()=>{}).finally(doInit);
-  } else {
-    doInit();
-  }
+        // Auth xong mới resolve
+        firebase.auth().signInAnonymously()
+          .then(() => { _fbReady = true; resolve(true); })
+          .catch(() => { _fbReady = true; resolve(true); });
+
+        if (qrMode) return; // Trang khách không cần listeners
+
+        // POS: connection state
+        _db.ref('.info/connected').on('value', snap => {
+          updateFBStatusUI(snap.val() ? 'online' : 'reconnecting');
+        });
+
+        // POS: nhận đơn khách gọi qua QR
+        _db.ref(`pos_data/${_fbShopId}/pending_orders`).on('child_added', snap => {
+          const po = snap.val();
+          if (!po || !po.id) return;
+          const already = (state.pendingOrders || []).find(x => x.id === po.id);
+          if (!already) {
+            if (!state.pendingOrders) state.pendingOrders = [];
+            state.pendingOrders.push(po);
+            persistState();
+            renderTables();
+            pushNotification('📱 Khách gọi món!',
+              `Khách ${po.customerName||'vãng lai'} gọi món tại ${po.tableName}: ${(po.items||[]).map(i=>i.name+' x'+i.qty).join(', ')}`, '📱');
+          }
+          snap.ref.remove();
+        });
+
+        // POS: kitchen updates từ thiết bị khác
+        _db.ref(`pos_data/${_fbShopId}/kitchen_updates`).on('child_added', snap => {
+          const update = snap.val();
+          if (!update || !update.id) { snap.ref.remove(); return; }
+          const existing = (state.kitchenOrders || []).find(x => x.id === update.id);
+          if (!existing) {
+            if (!state.kitchenOrders) state.kitchenOrders = [];
+            state.kitchenOrders.push(update);
+          } else { Object.assign(existing, update); }
+          persistState(); renderKitchen(); updateKitchenBadge();
+          snap.ref.remove();
+        });
+
+        showToast('🔥 Firebase đã kết nối!');
+        saveFBConfig(cfg);
+        renderFBStatus();
+        // Đẩy menu lên Firebase để trang QR khách đọc
+        try {
+          _db.ref(`pos_data/${_fbShopId}/menu_data`).set({
+            shop: { name: state.settings?.shopName||'', addr: state.settings?.shopAddress||'', phone: state.settings?.shopPhone||'' },
+            menu: (state.menuItems||[]).map(m=>({id:m.id,name:m.name,category:m.category,price:m.price,image:m.image,unit:m.unit})),
+            updatedAt: Date.now()
+          });
+        } catch(e) {}
+      } catch(err) {
+        _fbReady = false;
+        if (!qrMode) showToast('❌ Lỗi Firebase: ' + err.message, 'error');
+        console.error('Firebase init error:', err);
+        resolve(false);
+      }
+    };
+
+    if (firebase.apps && firebase.apps.length) {
+      firebase.apps[0].delete().catch(()=>{}).finally(doInit);
+    } else {
+      doInit();
+    }
+  });
 }
 
 // ── Gửi đơn QR lên Firebase (từ trang khách) ───────────────
@@ -3097,6 +3100,7 @@ function printTableQR(tableId, qrUrl, tableName) {
   .addr{font-size:11px;color:#94a3b8;margin-bottom:16px}.qr-wrap{padding:14px;background:#fff;border-radius:16px;border:2px solid #ddd6fe;box-shadow:0 4px 16px rgba(109,40,217,.12)}
   img{display:block;width:200px;height:200px}.tname{font-size:20px;font-weight:900;color:#6d28d9;margin-top:14px}.hint{font-size:11px;color:#94a3b8;margin-top:6px;text-align:center}
   </style></head><body>
+<div id="_qr_debug_box" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #6d28d9;padding:8px;max-height:200px;overflow-y:auto;z-index:99999;font-family:monospace"></div>
   <div class="logo">☕</div>
   <div class="shop">${shop.shopName || 'Quán Cafe'}</div>
   <div class="addr">${shop.shopAddress || ''}</div>
@@ -7315,6 +7319,20 @@ function toggleKitchenAutoRefresh() {
 // loadMenuSnapshotFromFirebase removed — menu data served via localStorage pos_menu_data_{tableId}
 
 // ── Detect if opened as QR Order page ─────────────────────
+// Debug logger hiển thị trực tiếp trên màn hình điện thoại
+const _qrLogs = [];
+function qrLog(msg, color) {
+  _qrLogs.push({ msg, color: color||'#334155', time: new Date().toLocaleTimeString('vi-VN') });
+  const box = document.getElementById('_qr_debug_box');
+  if (box) {
+    box.innerHTML = _qrLogs.slice(-12).map(l =>
+      `<div style="color:${l.color};font-size:11px;padding:2px 0;border-bottom:1px solid #e2e8f0">[${l.time}] ${l.msg}</div>`
+    ).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+  console.log('[QR]', msg);
+}
+
 (async function() {
   const hash = window.location.hash;
   const m = hash.match(/^#qr-order-(\d+)$/);
@@ -7329,25 +7347,32 @@ function toggleKitchenAutoRefresh() {
   document.getElementById('cart-panel').style.display = 'none';
   document.body.style.background = '#faf5ff';
 
+  // Hiện debug box
+  const dbx = document.getElementById('_qr_debug_box');
+  if (dbx) dbx.style.display = 'block';
+  qrLog('🚀 QR page khởi động, tableId=' + tableId);
+
   // ── 1. Init Firebase từ URL param fbc ──────────────────────
   const fbcEncoded = urlParams.get('fbc');
   const shopIdFromUrl = urlParams.get('shop') || '';
+  qrLog('fbc có trong URL: ' + (fbcEncoded ? 'CÓ (' + fbcEncoded.length + ' ký tự)' : 'KHÔNG CÓ ❌'));
+  qrLog('shopId: ' + (shopIdFromUrl || '(trống)'));
+
   if (fbcEncoded) {
     try {
       const fbcJson = b64DecodeUnicode(fbcEncoded);
       const fbcObj = JSON.parse(fbcJson);
       fbcObj.shopId = shopIdFromUrl || fbcObj.shopId || 'shop1';
-      initFirebase(fbcObj, true); // qrMode: chỉ init auth+db, không đăng ký listeners POS
-      // Chờ auth xong (tối đa 5 giây)
-      await new Promise(resolve => {
-        if (_fbReady) { resolve(); return; }
-        let tries = 0;
-        const t = setInterval(() => {
-          tries++;
-          if (_fbReady || tries > 50) { clearInterval(t); resolve(); }
-        }, 100);
-      });
-    } catch(e) { console.warn('QR Firebase init failed:', e); }
+      qrLog('Firebase config OK, project: ' + (fbcObj.projectId||'?'));
+      qrLog('⏳ Đang init Firebase + auth...');
+      await initFirebase(fbcObj, true);
+      qrLog('Firebase _fbReady=' + _fbReady + ' _db=' + (!!_db) + ' shopId=' + _fbShopId, _fbReady ? '#16a34a' : '#dc2626');
+    } catch(e) {
+      qrLog('❌ Firebase init lỗi: ' + e.message, '#dc2626');
+    }
+  } else {
+    qrLog('⚠️ Không có fbc trong URL → không thể kết nối Firebase!', '#b45309');
+    qrLog('Hãy lấy QR mới từ POS (bấm icon QR trên bàn)', '#b45309');
   }
 
   // ── 2. Đọc menu từ Firebase hoặc localStorage ──────────────
@@ -7575,24 +7600,24 @@ function renderQROrderPage(data) {
     // Firebase first, localStorage fallback
     let sent = false;
 
-    // Chờ Firebase auth xong (tối đa 5 giây)
-    if (_db && _fbShopId) {
-      const waitReady = new Promise(resolve => {
-        if (_fbReady) { resolve(); return; }
-        let tries = 0;
-        const t = setInterval(() => {
-          tries++;
-          if (_fbReady || tries > 50) { clearInterval(t); resolve(); }
-        }, 100);
-      });
-      await waitReady;
+    // Chờ auth sẵn sàng (đã resolved khi initFirebase xong)
+    if (!_fbReady && _db) {
+      await new Promise(r => setTimeout(r, 300));
     }
 
+    qrLog('Gửi đơn: _fbReady=' + _fbReady + ' _db=' + !!_db + ' shopId=' + _fbShopId);
     if (_fbReady && _db && _fbShopId) {
       try {
-        await _db.ref(`pos_data/${_fbShopId}/pending_orders/${order.id}`).set(order);
+        const path = `pos_data/${_fbShopId}/pending_orders/${order.id}`;
+        qrLog('⏳ Đang ghi vào: ' + path);
+        await _db.ref(path).set(order);
         sent = true;
-      } catch(e) { console.warn('Firebase fallback:', e); }
+        qrLog('✅ Ghi Firebase THÀNH CÔNG!', '#16a34a');
+      } catch(e) {
+        qrLog('❌ Ghi Firebase THẤT BẠI: ' + e.message, '#dc2626');
+      }
+    } else {
+      qrLog('❌ Firebase chưa sẵn sàng! Không thể gửi đơn.', '#dc2626');
     }
     if (!sent) {
       localStorage.setItem('pos_new_order_' + tableId, JSON.stringify(order));
