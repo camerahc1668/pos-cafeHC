@@ -1663,7 +1663,7 @@ header > div:first-child > div:nth-child(2) {
         <!-- ELEVENLABS -->
         <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-4">
           <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
-            <span class="text-lg">🎙</span> Giọng đọc ElevenLabs (Adam)
+            <span class="text-lg">🎙</span> Giọng đọc ElevenLabs
           </h3>
           <div class="space-y-3">
             <div>
@@ -1672,7 +1672,20 @@ header > div:first-child > div:nth-child(2) {
                 <input type="password" id="setting-elevenlabs-key" placeholder="sk_..." class="flex-1 px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-500">
                 <button onclick="testElevenLabsKey()" class="px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-lg text-xs font-bold transition-colors whitespace-nowrap">▶ Test</button>
               </div>
-              <p class="text-xs text-slate-400 mt-1">Key lưu trên máy bạn, không gửi đi đâu. Lấy key tại <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" class="text-orange-500 underline">elevenlabs.io</a></p>
+              <p class="text-xs text-slate-400 mt-1">Key lưu trên máy bạn. Lấy key tại <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" class="text-orange-500 underline">elevenlabs.io</a></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Chọn giọng nói</label>
+              <select id="setting-elevenlabs-voice" onchange="saveSettings()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 bg-white">
+                <option value="quanHC">🎙 QuanHC (giọng tùy chỉnh)</option>
+                <option value="w2KTJ6MO4SIK6nWK4YH8">🎙 Duc Huy</option>
+                <option value="pNInz6obpgDQGcFmaJgB">🎙 Adam (mặc định)</option>
+                <option value="custom">✏️ Nhập Voice ID khác...</option>
+              </select>
+            </div>
+            <div id="elevenlabs-custom-voice-wrap" class="hidden">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Voice ID tùy chỉnh</label>
+              <input type="text" id="setting-elevenlabs-custom-voice" placeholder="Dán Voice ID từ ElevenLabs..." class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-500" oninput="saveSettings()">
             </div>
             <div class="flex items-center gap-3">
               <label class="relative inline-flex items-center cursor-pointer">
@@ -1680,7 +1693,26 @@ header > div:first-child > div:nth-child(2) {
                 <div class="w-9 h-5 bg-slate-200 peer-checked:bg-emerald-500 rounded-full transition-colors"></div>
                 <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow"></div>
               </label>
-              <span class="text-sm text-slate-600">Bật giọng Adam khi có đơn mới</span>
+              <span class="text-sm text-slate-600">Bật giọng ElevenLabs khi có đơn mới</span>
+            </div>
+
+            <!-- Google TTS Fallback -->
+            <div class="border-t border-slate-100 pt-3 mt-1">
+              <p class="text-xs font-semibold text-slate-500 mb-2">🔄 Dự phòng khi ElevenLabs lỗi / hết credits</p>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Giọng Google TTS (fallback)</label>
+                <select id="setting-google-tts-voice" onchange="saveSettings()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="vi-VN-Standard-A">🇻🇳 Nữ Việt Nam (Standard A)</option>
+                  <option value="vi-VN-Standard-B">🇻🇳 Nam Việt Nam (Standard B)</option>
+                  <option value="vi-VN-Standard-C">🇻🇳 Nữ Việt Nam (Standard C)</option>
+                  <option value="vi-VN-Standard-D">🇻🇳 Nam Việt Nam (Standard D)</option>
+                  <option value="auto">🔍 Tự động chọn giọng tốt nhất</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2 mt-2">
+                <button onclick="testGoogleTTS()" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold transition-colors">▶ Test Google TTS</button>
+                <span class="text-xs text-slate-400">Miễn phí, không cần API key</span>
+              </div>
             </div>
           </div>
         </div>
@@ -5863,11 +5895,22 @@ function appLogoHtml(ch, size = 28) {
   return `<span style="display:inline-flex;width:${size}px;height:${size}px;border-radius:7px;align-items:center;justify-content:center;font-size:${Math.round(size*0.55)}px;background:${ch.color};color:#fff;font-weight:900;flex-shrink:0">${txt}</span>`;
 }
 
-// ── Giọng đọc ElevenLabs Adam ────────────────────────────────
-const ELEVENLABS_ADAM_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam voice ID
+// ── Giọng đọc ElevenLabs ─────────────────────────────────────
+const ELEVENLABS_VOICES = {
+  'quanHC':                  { label: 'QuanHC', id: 'quanHC' },
+  'w2KTJ6MO4SIK6nWK4YH8':   { label: 'Duc Huy', id: 'w2KTJ6MO4SIK6nWK4YH8' },
+  'pNInz6obpgDQGcFmaJgB':   { label: 'Adam', id: 'pNInz6obpgDQGcFmaJgB' },
+};
+
+function getActiveVoiceId() {
+  const sel = localStorage.getItem('elevenlabs_voice') || 'quanHC';
+  if (sel === 'custom') return localStorage.getItem('elevenlabs_custom_voice') || 'pNInz6obpgDQGcFmaJgB';
+  return sel;
+}
 
 async function _elFetch(key, text) {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_ADAM_ID}`, {
+  const voiceId = getActiveVoiceId();
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
       'xi-api-key': key,
@@ -5898,7 +5941,15 @@ async function speakWithAdam(text) {
     audio.onended = () => URL.revokeObjectURL(url);
     audio.play();
   } catch(e) {
-    console.warn('ElevenLabs error:', e.message);
+    const msg = e.message || '';
+    if (msg.includes('402')) {
+      console.warn('ElevenLabs hết credits — chuyển sang Google TTS');
+      showToast('⚠️ ElevenLabs hết credits, dùng Google TTS dự phòng', 'warning');
+    } else if (msg.includes('401') || msg.includes('403')) {
+      console.warn('ElevenLabs key lỗi — chuyển sang Google TTS');
+    } else {
+      console.warn('ElevenLabs error:', msg);
+    }
     speakFallback(text);
   }
 }
@@ -5906,10 +5957,42 @@ async function speakWithAdam(text) {
 function speakFallback(text) {
   if (!window.speechSynthesis) return;
   const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'vi-VN'; utt.rate = 1.05; utt.pitch = 1;
+  utt.lang = 'vi-VN';
+  utt.rate = 1.05;
+  utt.pitch = 1;
+
+  // Áp dụng giọng Google TTS đã chọn
+  const voicePref = localStorage.getItem('google_tts_voice') || 'auto';
+  if (voicePref !== 'auto' && _ttsVoices.length > 0) {
+    // Tìm giọng khớp tên
+    const match = _ttsVoices.find(v =>
+      v.name.includes(voicePref) ||
+      v.name.toLowerCase().includes(voicePref.split('-').pop().toLowerCase())
+    );
+    if (match) utt.voice = match;
+    else {
+      // fallback: tìm giọng vi-VN bất kỳ
+      const viVoice = _ttsVoices.find(v => v.lang === 'vi-VN' || v.lang.startsWith('vi'));
+      if (viVoice) utt.voice = viVoice;
+      // Nếu giọng là Nam (B hoặc D) thì hạ pitch
+      if (voicePref.endsWith('-B') || voicePref.endsWith('-D')) {
+        utt.pitch = 0.8; utt.rate = 1.0;
+      }
+    }
+  } else {
+    const viVoice = _ttsVoices.find(v => v.lang === 'vi-VN') ||
+                    _ttsVoices.find(v => v.lang.startsWith('vi'));
+    if (viVoice) utt.voice = viVoice;
+  }
+
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utt);
 }
+
+window.testGoogleTTS = function() {
+  speakFallback('Xin chào! Bàn A1 vừa gọi Cà Phê Đá và Cà Phê Sữa. Tổng 32 ngàn đồng.');
+  showToast('🔊 Đang phát thử giọng Google TTS...', 'info');
+};
 
 function speakAppName(chName, slotIndex) {
   const text = `Đơn ${slotIndex + 1}, ${chName}`;
@@ -5930,7 +6013,9 @@ window.testElevenLabsKey = async function() {
     localStorage.setItem('elevenlabs_enabled', '1');
     const el = document.getElementById('setting-elevenlabs-enabled');
     if (el) el.checked = true;
-    showToast('✅ Giọng Adam đã kết nối!');
+    const vSel = localStorage.getItem('elevenlabs_voice') || 'quanHC';
+    const vLabel = vSel === 'custom' ? 'Custom' : (ELEVENLABS_VOICES[vSel]?.label || vSel);
+    showToast('✅ Giọng ' + vLabel + ' đã kết nối!');
   } catch(e) {
     const msg = e.message || '';
     if (msg.includes('401')) showToast('❌ API key không hợp lệ — hãy kiểm tra lại', 'error');
@@ -7147,11 +7232,26 @@ function loadSettings() {
   document.getElementById('setting-bank-account').value  = s.bankAccount || '';
   document.getElementById('setting-bank-name').value     = s.bankName    || '';
   // ElevenLabs
-  const elKey = localStorage.getItem('elevenlabs_api_key') || '';
+  const elKey = localStorage.getItem('elevenlabs_api_key') || '3b8e0a984d190a533a7c7666320b890bd6b85412155e6d003d46a5ba9c076f8e';
+  if (!localStorage.getItem('elevenlabs_api_key')) {
+    localStorage.setItem('elevenlabs_api_key', '3b8e0a984d190a533a7c7666320b890bd6b85412155e6d003d46a5ba9c076f8e');
+    localStorage.setItem('elevenlabs_enabled', '1');
+    localStorage.setItem('elevenlabs_voice', 'quanHC');
+  }
   const elEl = document.getElementById('setting-elevenlabs-key');
   if (elEl) elEl.value = elKey;
   const elEnabledEl = document.getElementById('setting-elevenlabs-enabled');
   if (elEnabledEl) elEnabledEl.checked = localStorage.getItem('elevenlabs_enabled') === '1';
+  const elVoiceSel = document.getElementById('setting-elevenlabs-voice');
+  if (elVoiceSel) {
+    elVoiceSel.value = localStorage.getItem('elevenlabs_voice') || 'quanHC';
+    const customWrap = document.getElementById('elevenlabs-custom-voice-wrap');
+    if (customWrap) customWrap.classList.toggle('hidden', elVoiceSel.value !== 'custom');
+  }
+  const elCustomVoiceEl = document.getElementById('setting-elevenlabs-custom-voice');
+  if (elCustomVoiceEl) elCustomVoiceEl.value = localStorage.getItem('elevenlabs_custom_voice') || '';
+  const googleVoiceSel = document.getElementById('setting-google-tts-voice');
+  if (googleVoiceSel) googleVoiceSel.value = localStorage.getItem('google_tts_voice') || 'auto';
   if (s.bankQrImage) {
     document.getElementById('bank-qr-img').src = s.bankQrImage;
     document.getElementById('bank-qr-preview').classList.remove('hidden');
@@ -7537,9 +7637,18 @@ function saveSettings() {
   // Lưu ElevenLabs key riêng vào localStorage (không sync Firebase)
   const elKey = document.getElementById('setting-elevenlabs-key')?.value.trim() || '';
   const elEnabled = document.getElementById('setting-elevenlabs-enabled')?.checked ? '1' : '0';
+  const elVoice = document.getElementById('setting-elevenlabs-voice')?.value || 'quanHC';
+  const elCustomVoice = document.getElementById('setting-elevenlabs-custom-voice')?.value.trim() || '';
   if (elKey) localStorage.setItem('elevenlabs_api_key', elKey);
   else localStorage.removeItem('elevenlabs_api_key');
   localStorage.setItem('elevenlabs_enabled', elEnabled);
+  localStorage.setItem('elevenlabs_voice', elVoice);
+  if (elCustomVoice) localStorage.setItem('elevenlabs_custom_voice', elCustomVoice);
+  const googleVoice = document.getElementById('setting-google-tts-voice')?.value || 'auto';
+  localStorage.setItem('google_tts_voice', googleVoice);
+  // Hiện/ẩn ô custom voice
+  const customWrap = document.getElementById('elevenlabs-custom-voice-wrap');
+  if (customWrap) customWrap.classList.toggle('hidden', elVoice !== 'custom');
   persistState();
   showSavedIndicator();
   updateHeader();
