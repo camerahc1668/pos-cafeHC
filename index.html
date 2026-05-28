@@ -194,6 +194,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>☕ POS HC</title>
+
+<!-- PWA / Icon cho iPhone & Android -->
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS 206">
+<meta name="theme-color" content="#f97316">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1677,9 +1686,9 @@ header > div:first-child > div:nth-child(2) {
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Chọn giọng nói</label>
               <select id="setting-elevenlabs-voice" onchange="saveSettings()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 bg-white">
-                <option value="quanHC">🎙 QuanHC (giọng tùy chỉnh)</option>
-                <option value="w2KTJ6MO4SIK6nWK4YH8">🎙 Duc Huy</option>
-                <option value="pNInz6obpgDQGcFmaJgB">🎙 Adam (mặc định)</option>
+                <option value="w2KTJ6MO4SIK6nWK4YH8">🎙 Đức Huy (mặc định)</option>
+                <option value="quanHC">🎙 QuanHC</option>
+                <option value="pNInz6obpgDQGcFmaJgB">🎙 Adam</option>
                 <option value="custom">✏️ Nhập Voice ID khác...</option>
               </select>
             </div>
@@ -5897,14 +5906,14 @@ function appLogoHtml(ch, size = 28) {
 
 // ── Giọng đọc ElevenLabs ─────────────────────────────────────
 const ELEVENLABS_VOICES = {
+  'w2KTJ6MO4SIK6nWK4YH8':   { label: 'Đức Huy', id: 'w2KTJ6MO4SIK6nWK4YH8' },
   'quanHC':                  { label: 'QuanHC', id: 'quanHC' },
-  'w2KTJ6MO4SIK6nWK4YH8':   { label: 'Duc Huy', id: 'w2KTJ6MO4SIK6nWK4YH8' },
   'pNInz6obpgDQGcFmaJgB':   { label: 'Adam', id: 'pNInz6obpgDQGcFmaJgB' },
 };
 
 function getActiveVoiceId() {
-  const sel = localStorage.getItem('elevenlabs_voice') || 'quanHC';
-  if (sel === 'custom') return localStorage.getItem('elevenlabs_custom_voice') || 'pNInz6obpgDQGcFmaJgB';
+  const sel = localStorage.getItem('elevenlabs_voice') || 'w2KTJ6MO4SIK6nWK4YH8';
+  if (sel === 'custom') return localStorage.getItem('elevenlabs_custom_voice') || 'w2KTJ6MO4SIK6nWK4YH8';
   return sel;
 }
 
@@ -6013,7 +6022,7 @@ window.testElevenLabsKey = async function() {
     localStorage.setItem('elevenlabs_enabled', '1');
     const el = document.getElementById('setting-elevenlabs-enabled');
     if (el) el.checked = true;
-    const vSel = localStorage.getItem('elevenlabs_voice') || 'quanHC';
+    const vSel = localStorage.getItem('elevenlabs_voice') || 'w2KTJ6MO4SIK6nWK4YH8';
     const vLabel = vSel === 'custom' ? 'Custom' : (ELEVENLABS_VOICES[vSel]?.label || vSel);
     showToast('✅ Giọng ' + vLabel + ' đã kết nối!');
   } catch(e) {
@@ -7236,7 +7245,7 @@ function loadSettings() {
   if (!localStorage.getItem('elevenlabs_api_key')) {
     localStorage.setItem('elevenlabs_api_key', '3b8e0a984d190a533a7c7666320b890bd6b85412155e6d003d46a5ba9c076f8e');
     localStorage.setItem('elevenlabs_enabled', '1');
-    localStorage.setItem('elevenlabs_voice', 'quanHC');
+    localStorage.setItem('elevenlabs_voice', 'w2KTJ6MO4SIK6nWK4YH8');
   }
   const elEl = document.getElementById('setting-elevenlabs-key');
   if (elEl) elEl.value = elKey;
@@ -7244,7 +7253,7 @@ function loadSettings() {
   if (elEnabledEl) elEnabledEl.checked = localStorage.getItem('elevenlabs_enabled') === '1';
   const elVoiceSel = document.getElementById('setting-elevenlabs-voice');
   if (elVoiceSel) {
-    elVoiceSel.value = localStorage.getItem('elevenlabs_voice') || 'quanHC';
+    elVoiceSel.value = localStorage.getItem('elevenlabs_voice') || 'w2KTJ6MO4SIK6nWK4YH8';
     const customWrap = document.getElementById('elevenlabs-custom-voice-wrap');
     if (customWrap) customWrap.classList.toggle('hidden', elVoiceSel.value !== 'custom');
   }
@@ -7637,7 +7646,7 @@ function saveSettings() {
   // Lưu ElevenLabs key riêng vào localStorage (không sync Firebase)
   const elKey = document.getElementById('setting-elevenlabs-key')?.value.trim() || '';
   const elEnabled = document.getElementById('setting-elevenlabs-enabled')?.checked ? '1' : '0';
-  const elVoice = document.getElementById('setting-elevenlabs-voice')?.value || 'quanHC';
+  const elVoice = document.getElementById('setting-elevenlabs-voice')?.value || 'w2KTJ6MO4SIK6nWK4YH8';
   const elCustomVoice = document.getElementById('setting-elevenlabs-custom-voice')?.value.trim() || '';
   if (elKey) localStorage.setItem('elevenlabs_api_key', elKey);
   else localStorage.removeItem('elevenlabs_api_key');
