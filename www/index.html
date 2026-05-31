@@ -4922,10 +4922,10 @@ document.getElementById('btn-checkout').addEventListener('click', () => {
       (state.kitchenOrders || [])
         .filter(ko => ko.tableId === transaction.tableId && !ko.txId)
         .forEach(ko => { ko.txId = transaction.id; });
-    } else if (isTakeaway && transaction.takeawayId) {
-      const twName = `Mang về #${transaction.takeawayId}`;
+    } else if (isTakeaway) {
+      const slotIdx = state.currentTakeawayId;
       (state.kitchenOrders || [])
-        .filter(ko => ko.tableName === twName && !ko.txId)
+        .filter(ko => ko.isTakeaway === true && ko.takeawaySlot === slotIdx && !ko.txId)
         .forEach(ko => { ko.txId = transaction.id; });
     }
 
@@ -4939,6 +4939,12 @@ document.getElementById('btn-checkout').addEventListener('click', () => {
       if (Array.isArray(state.takeawayQueue)) {
         state.takeawayQueue.splice(slotIndex, 1);
       }
+      // Cập nhật takeawaySlot trong kitchenOrders: các slot phía sau dịch lên 1
+      (state.kitchenOrders || []).forEach(ko => {
+        if (ko.isTakeaway && typeof ko.takeawaySlot === 'number' && ko.takeawaySlot > slotIndex) {
+          ko.takeawaySlot -= 1;
+        }
+      });
       state.currentOrderType = 'table';
       state.currentTakeawayId = null;
     } else if (state.currentTableId) {
@@ -5273,13 +5279,16 @@ function showReceipt(transaction) {
     location = table ? table.name : 'Bàn';
   }
 
-  // Customer display: override > lookup > Khách vãng lai
+  // Customer display: override > lookup > app channel > Khách vãng lai
   let custDisplay = 'Khách vãng lai';
   if (transaction.customerNameOverride) {
     custDisplay = transaction.customerNameOverride;
   } else if (transaction.customerId) {
     const c = state.customers.find(x => x.id === transaction.customerId);
     custDisplay = c ? c.name : 'Khách vãng lai';
+  } else if (transaction.channel && transaction.channel !== 'direct') {
+    const appCh = (state.appChannels || []).find(c => c.id === transaction.channel);
+    if (appCh) custDisplay = appCh.icon + ' ' + appCh.name;
   }
 
   // Safe shop values
@@ -5555,7 +5564,22 @@ function renderTakeaway() {
 
   container.innerHTML = slots.map(({slotIndex, slotLabel, order}) => {
     const hasItems = order && order.items && order.items.length > 0;
-    const total = hasItems ? order.items.reduce((s, i) => s + i.price * i.qty, 0) - (order.discount || 0) : 0;
+
+    // Tính tổng từ kitchenOrders (món đã gởi bếp) cho slot này
+    const twKosAll = order ? (state.kitchenOrders || []).filter(ko =>
+      ko.isTakeaway === true && ko.takeawaySlot === slotIndex && !ko.txId
+    ) : [];
+    const kitchenItems = twKosAll.flatMap(ko => ko.items || []);
+    const kitchenQty = kitchenItems.reduce((s, i) => s + (i.qty || 0), 0);
+    // Tổng tiền: items trong cart + items đã gởi bếp (dùng giá từ menuItems để tra)
+    const cartTotal = hasItems ? order.items.reduce((s, i) => s + i.price * i.qty, 0) : 0;
+    const kitchenTotal = kitchenItems.reduce((s, i) => {
+      const menuItem = (state.menuItems || []).find(m => m.id === i.id);
+      return s + (menuItem ? menuItem.price : 0) * (i.qty || 0);
+    }, 0);
+    const total = cartTotal + kitchenTotal - (order?.discount || 0);
+    const totalQty = (hasItems ? order.items.reduce((s, i) => s + i.qty, 0) : 0) + kitchenQty;
+    const hasAnyItems = hasItems || kitchenQty > 0;
 
     // Tên khách / tên app
     const cust = order?.customerId ? state.customers.find(c => c.id === order.customerId) : null;
@@ -5576,12 +5600,10 @@ function renderTakeaway() {
       : (order?.channel === 'direct' ? `<span class="badge bg-slate-100 text-slate-500 text-xs">🛍 Trực tiếp</span>` : '');
 
     // ── Badge tình trạng đơn (lọc qua takeawaySlot + isTakeaway) ──
-    const twKos = hasItems ? (state.kitchenOrders || []).filter(ko =>
-      ko.isTakeaway === true && ko.takeawaySlot === slotIndex && !ko.txId
-    ) : [];
+    const twKos = twKosAll;
     const twKStatuses = twKos.map(k => k.status);
     const statusPill = !order ? ''
-      : !hasItems ? ''
+      : !hasAnyItems ? ''
       : twKos.length === 0
         ? '<span class="badge bg-violet-100 text-violet-700 text-xs">📝 Đang gọi món</span>'
         : twKStatuses.every(s => s === 'done')
@@ -5592,7 +5614,7 @@ function renderTakeaway() {
 
     // Nút dồn món: có đơn khác trong queue không?
     const hasOtherSlots = queue.some((o, i) => i !== slotIndex && o);
-    const canTransfer = hasItems && hasOtherSlots;
+    const canTransfer = hasAnyItems && hasOtherSlots;
 
     const headerClass = !order ? 'border-slate-200 bg-white opacity-60'
       : isSelected ? 'border-orange-400 ring-2 ring-orange-200 bg-orange-50/40'
@@ -5617,7 +5639,7 @@ function renderTakeaway() {
           <div class="flex items-center gap-1.5 flex-wrap justify-end">
             ${channelBadge}
             ${statusPill}
-            ${hasItems ? `<span class="badge bg-blue-100 text-blue-700 text-xs">${order.items.length} món</span>` : ''}
+            ${hasAnyItems ? `<span class="badge bg-blue-100 text-blue-700 text-xs">${totalQty} món</span>` : ''}
           </div>
         </div>
 
@@ -5632,13 +5654,26 @@ function renderTakeaway() {
 
           <!-- Danh sách món -->
           <div class="space-y-0.5 min-h-6">
-            ${hasItems ? order.items.slice(0,3).map(item => `
-              <div class="flex justify-between text-xs text-slate-600">
-                <span class="truncate">${item.name}${item.note ? ` <span class='text-amber-500'>(${item.note})</span>` : ''} ×${item.qty}</span>
-                <span class="font-semibold ml-2 shrink-0">${formatCurrency(item.price * item.qty)}</span>
-              </div>`).join('')
-            : '<div class="text-xs text-slate-400 italic">Chưa có món — nhấn Gọi món để đặt</div>'}
-            ${hasItems && order.items.length > 3 ? `<div class="text-xs text-slate-400">+${order.items.length-3} món nữa…</div>` : ''}
+            ${hasAnyItems ? (() => {
+              // Gộp items từ cart + kitchen để hiển thị tối đa 3 dòng
+              const cartItemsDisplay = hasItems ? order.items.map(item => ({
+                name: item.name, note: item.note || '', qty: item.qty,
+                priceStr: formatCurrency(item.price * item.qty)
+              })) : [];
+              const kitchenItemsDisplay = kitchenItems.map(i => {
+                const menuItem = (state.menuItems || []).find(m => m.id === i.id);
+                return { name: i.name, note: i.note || '', qty: i.qty,
+                  priceStr: menuItem ? formatCurrency(menuItem.price * i.qty) : '' };
+              });
+              const allDisplay = [...cartItemsDisplay, ...kitchenItemsDisplay];
+              const shown = allDisplay.slice(0, 3);
+              const more = allDisplay.length - 3;
+              return shown.map(item => `
+                <div class="flex justify-between text-xs text-slate-600">
+                  <span class="truncate">${item.name}${item.note ? ` <span class='text-amber-500'>(${item.note})</span>` : ''} ×${item.qty}</span>
+                  <span class="font-semibold ml-2 shrink-0">${item.priceStr}</span>
+                </div>`).join('') + (more > 0 ? `<div class="text-xs text-slate-400">+${more} món nữa…</div>` : '');
+            })() : '<div class="text-xs text-slate-400 italic">Chưa có món — nhấn Gọi món để đặt</div>'}
           </div>
 
           <!-- Actions -->
@@ -5654,12 +5689,12 @@ function renderTakeaway() {
               class="px-2.5 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors" title="Dồn món sang đơn khác">
               ⇄ Dồn
             </button>` : ''}
-            <button class="btn-tw-complete flex-1 py-2 rounded-xl font-bold text-xs transition-all ${hasItems ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow hover:opacity-90' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}"
-              data-slot="${slotIndex}" ${!hasItems ? 'disabled' : ''}>
+            <button class="btn-tw-complete flex-1 py-2 rounded-xl font-bold text-xs transition-all ${hasAnyItems ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow hover:opacity-90' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}"
+              data-slot="${slotIndex}" ${!hasAnyItems ? 'disabled' : ''}>
               💳 Thanh toán
             </button>
-            <button class="btn-tw-print px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${hasItems ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'}"
-              data-slot="${slotIndex}" ${!hasItems ? 'disabled' : ''}>
+            <button class="btn-tw-print px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${hasAnyItems ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-300 cursor-not-allowed'}"
+              data-slot="${slotIndex}" ${!hasAnyItems ? 'disabled' : ''}>
               🖨
             </button>
             <button onclick="cancelTakeawaySlot(${slotIndex})"
@@ -5674,9 +5709,9 @@ function renderTakeaway() {
           </div>
         `}
 
-        ${hasItems ? `
+        ${hasAnyItems ? `
           <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2">
-            <span class="text-xs text-slate-500">${order.items.reduce((s,i) => s+i.qty, 0)} món</span>
+            <span class="text-xs text-slate-500">${totalQty} món</span>
             <span class="font-extrabold text-base ${isFirst ? 'text-emerald-600' : 'text-blue-600'}">${formatCurrency(total)}</span>
           </div>` : ''}
       </div>`;
@@ -5739,7 +5774,35 @@ function selectTakeawaySlot(slotIndex) {
 // ── Thanh toán slot → shift queue ────────────────────────────
 function checkoutTakeawaySlot(slotIndex) {
   const queue = state.takeawayQueue || [];
-  if (!queue[slotIndex] || !queue[slotIndex].items.length) return;
+  if (!queue[slotIndex]) return;
+
+  // Kiểm tra có món không: trong cart HOẶC đã gởi bếp
+  const hasCartItems = queue[slotIndex].items && queue[slotIndex].items.length > 0;
+  const hasKitchenItems = (state.kitchenOrders || []).some(ko =>
+    ko.isTakeaway === true && ko.takeawaySlot === slotIndex && !ko.txId
+  );
+  if (!hasCartItems && !hasKitchenItems) return;
+
+  // Nếu items trong cart trống nhưng đã có ở bếp, tạm thời ghép items từ bếp vào để checkout tính tiền
+  if (!hasCartItems && hasKitchenItems) {
+    const kitchenOrders = (state.kitchenOrders || []).filter(ko =>
+      ko.isTakeaway === true && ko.takeawaySlot === slotIndex && !ko.txId
+    );
+    const mergedItems = [];
+    kitchenOrders.forEach(ko => {
+      (ko.items || []).forEach(ki => {
+        const menuItem = (state.menuItems || []).find(m => m.id === ki.id);
+        const price = menuItem ? menuItem.price : 0;
+        const existing = mergedItems.find(m => m.id === ki.id && m.note === (ki.note||''));
+        if (existing) {
+          existing.qty += ki.qty;
+        } else {
+          mergedItems.push({ id: ki.id, name: ki.name, qty: ki.qty, price, note: ki.note || '' });
+        }
+      });
+    });
+    queue[slotIndex].items = mergedItems;
+  }
 
   // Sync vào state.currentTakeawayId để checkout logic dùng
   state.currentTakeawayId = slotIndex;
@@ -5756,11 +5819,12 @@ function checkoutTakeawaySlot(slotIndex) {
 function shiftTakeawayQueue(slotIndex) {
   if (!Array.isArray(state.takeawayQueue)) return;
   state.takeawayQueue.splice(slotIndex, 1); // xoá slot đã thanh toán
-  // Reset selection nếu đang chọn slot đã xoá
-  if (state.currentOrderType === `takeaway-${slotIndex}`) {
-    state.currentOrderType = 'table';
-    state.currentTakeawayId = null;
-  }
+
+  // Sau splice, các slot phía sau dịch lên 1 index
+  // → Reset selection về trống để tránh highlight sai slot
+  state.currentOrderType = 'table';
+  state.currentTakeawayId = null;
+
   persistState();
   renderTakeaway();
   renderCart();
@@ -7929,7 +7993,8 @@ function kitchenCard(o) {
     }
 
     // Chưa thanh toán (đơn gửi bếp không qua checkout, txId=null)
-    return `
+    // Chỉ hiện nút thanh toán khi thực sự chưa có giao dịch
+    if (!o.txId) return `
       <div class="bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">
         <div class="flex items-center gap-2 mb-2">
           <span class="text-red-400 text-base">💳</span>
@@ -7943,6 +8008,7 @@ function kitchenCard(o) {
           💳 Thanh toán ngay
         </button>
       </div>`;
+    return ''; // có txId nhưng không tìm thấy transaction → không hiện gì
   }
 
   return `
@@ -8170,20 +8236,25 @@ window.kitchenOpenPayment = function(kitchenId) {
 
     goToTableAndCheckout(o.tableId);
 
-  } else if (o.tableName && (o.tableName.startsWith('Mang về') || o.tableName.startsWith('Đơn '))) {
-    // Tạo đơn mới trong queue từ kitchen order
-    if (!Array.isArray(state.takeawayQueue)) state.takeawayQueue = [];
-    const items = o.items.map(ki => {
-      const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
-      return { id: ki.id || (mi ? mi.id : Date.now()), name: ki.name, qty: ki.qty, note: ki.note || '',
-        price: mi ? mi.price : 0, unit: mi ? mi.unit : '', image: mi ? mi.image : '', category: mi ? mi.category : '' };
-    }).filter(i => i.price > 0);
-    state.takeawayQueue.push({
-      qid: Date.now(), items, discount: 0, note: o.note || '',
-      customerId: null, customerName: '', customerPhone: '', channel: 'direct', createdAt: new Date().toISOString()
-    });
-    const newSlot = state.takeawayQueue.length - 1;
-    goToTakeawayAndCheckout(newSlot);
+  } else if (o.isTakeaway && typeof o.takeawaySlot === 'number') {
+    // Đơn mang về — chuyển thẳng về slot cũ, KHÔNG tạo đơn mới
+    const slotIndex = o.takeawaySlot;
+    const queue = state.takeawayQueue || [];
+    if (!queue[slotIndex]) {
+      showToast('Không tìm thấy đơn mang về trong queue', 'error');
+      return;
+    }
+    // Nếu cart của slot đã trống (đã gửi bếp), ghép items từ kitchen vào để checkout
+    const slotOrder = queue[slotIndex];
+    if (!slotOrder.items || slotOrder.items.length === 0) {
+      slotOrder.items = o.items.map(ki => {
+        const mi = state.menuItems.find(m => m.id === ki.id || m.name === ki.name);
+        return { id: ki.id || (mi ? mi.id : Date.now()), name: ki.name, qty: ki.qty,
+          note: ki.note || '', price: mi ? mi.price : 0,
+          unit: mi ? mi.unit : '', image: mi ? mi.image : '', category: mi ? mi.category : '' };
+      }).filter(i => i.price > 0);
+    }
+    goToTakeawayAndCheckout(slotIndex);
   } else {
     // Không xác định được bàn/mang về — hiện modal chọn bàn
     showModal(`
