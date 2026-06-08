@@ -1,0 +1,169 @@
+name: 🍎 Build iOS IPA
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔧 Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+
+      - name: 🍎 Add iOS platform
+        run: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          else
+            echo "iOS platform already exists"
+          fi
+
+      - name: 🔄 Sync Capacitor
+        run: npx cap sync ios
+
+      - name: 🎨 Generate iOS App Icons
+        run: |
+          # iOS cần nhiều kích thước icon
+          mkdir -p ios/App/App/Assets.xcassets/AppIcon.appiconset
+          
+          python3 << 'PYEOF'
+          from PIL import Image, ImageDraw
+          import math, os, json
+
+          def create_cafe_icon(size):
+              img = Image.new('RGBA', (size, size), (0,0,0,0))
+              draw = ImageDraw.Draw(img)
+              margin = size * 0.04
+              draw.rounded_rectangle([margin, margin, size-margin, size-margin],
+                                    radius=size*0.22, fill=(139, 69, 19))
+              inner_m = size * 0.12
+              draw.rounded_rectangle([inner_m, inner_m, size-inner_m, size-inner_m],
+                                    radius=size*0.18, fill=(160, 82, 45))
+              cx, cup_top = size*0.5, size*0.35
+              cup_bottom, cup_left, cup_right = size*0.72, size*0.22, size*0.78
+              cup_pts = [(cup_left,cup_top),(cup_right,cup_top),
+                        (cup_right*0.94+cup_left*0.06,cup_bottom),
+                        (cup_left*0.94+cup_right*0.06,cup_bottom)]
+              draw.polygon(cup_pts, fill=(245,230,211))
+              draw.ellipse([cup_left,cup_top-size*0.04,cup_right,cup_top+size*0.04], fill=(235,220,200))
+              liq_m, liq_top = size*0.06, cup_top+size*0.05
+              draw.ellipse([cup_left+liq_m,liq_top,cup_right-liq_m,liq_top+size*0.08], fill=(101,50,10))
+              draw.ellipse([cup_left-size*0.06,cup_bottom-size*0.02,cup_right+size*0.06,cup_bottom+size*0.06], fill=(245,230,211))
+              draw.arc([cup_right-size*0.02,cup_top+size*0.08,cup_right+size*0.16,cup_top+size*0.24],
+                      start=-90, end=90, fill=(245,230,211), width=max(2,size//32))
+              return img.convert('RGB')
+
+          ios_sizes = [20,29,40,58,60,76,80,87,120,152,167,180,1024]
+          base = 'ios/App/App/Assets.xcassets/AppIcon.appiconset'
+          os.makedirs(base, exist_ok=True)
+
+          images_info = []
+          for s in ios_sizes:
+              fname = f'icon-{s}.png'
+              create_cafe_icon(s).save(os.path.join(base, fname))
+              images_info.append({"filename": fname, "idiom": "universal", "scale": "1x", "size": f"{s}x{s}"})
+              print(f"iOS icon {s}x{s}")
+
+          # Contents.json
+          contents = {"images": images_info, "info": {"author": "xcode", "version": 1}}
+          with open(os.path.join(base, 'Contents.json'), 'w') as f:
+              json.dump(contents, f, indent=2)
+          print("Contents.json written")
+          PYEOF
+
+      - name: 📋 Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/App/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: 🏗️ Install CocoaPods
+        working-directory: ios/App
+        run: pod install --repo-update
+
+      - name: 🔨 Build iOS (No Code Sign - Simulator)
+        working-directory: ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -arch x86_64 \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build \
+            | xcpretty || true
+
+      # ── Release IPA (cần Apple Developer account) ─────────────────────
+      - name: 🔑 Import Code Signing Certificate
+        if: startsWith(github.ref, 'refs/tags/v') && env.IOS_CERTIFICATE != ''
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          # Create keychain
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          
+          # Import certificate
+          echo "$IOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          
+          # Install provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_PROVISION_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: 📦 Archive & Export IPA
+        if: startsWith(github.ref, 'refs/tags/v') && env.IOS_CERTIFICATE != ''
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+        working-directory: ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="profile"
+          
+          xcodebuild \
+            -exportArchive \
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/ipa
+
+      - name: 📦 Upload IPA Artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: cafe-pos-ios-ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
+          retention-days: 90
